@@ -1,0 +1,322 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000010000000000000001 /* DrawOverApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000001 /* DrawOverApp.swift */; };
+		A10000010000000000000002 /* DrawingTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000002 /* DrawingTool.swift */; };
+		A10000010000000000000003 /* Annotation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000003 /* Annotation.swift */; };
+		A10000010000000000000004 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000004 /* AppState.swift */; };
+		A10000010000000000000005 /* DrawingCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000005 /* DrawingCanvasView.swift */; };
+		A10000010000000000000006 /* OverlayWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000006 /* OverlayWindow.swift */; };
+		A10000010000000000000007 /* ToolbarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000007 /* ToolbarView.swift */; };
+		A10000010000000000000008 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000008 /* HotkeyManager.swift */; };
+		A10000010000000000000009 /* SnapshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000009 /* SnapshotService.swift */; };
+		A1000001000000000000000A /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000A /* MenuBarController.swift */; };
+		A1000001000000000000000C /* KeyboardShortcut.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000F /* KeyboardShortcut.swift */; };
+		A1000001000000000000000F /* DrawingInputMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000012 /* DrawingInputMonitor.swift */; };
+		A1000001000000000000000E /* ToolbarFrameTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000011 /* ToolbarFrameTracker.swift */; };
+		A1000001000000000000000D /* KeyRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000010 /* KeyRecorderView.swift */; };
+		A10000010000000000000011 /* FocusManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000014 /* FocusManager.swift */; };
+		A10000010000000000000012 /* CanvasTextEditorManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000015 /* CanvasTextEditorManager.swift */; };
+		A1000001000000000000000B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000B /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000010000000000000001 /* DrawOverApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawOverApp.swift; sourceTree = "<group>"; };
+		A20000010000000000000002 /* DrawingTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingTool.swift; sourceTree = "<group>"; };
+		A20000010000000000000003 /* Annotation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Annotation.swift; sourceTree = "<group>"; };
+		A20000010000000000000004 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		A20000010000000000000005 /* DrawingCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingCanvasView.swift; sourceTree = "<group>"; };
+		A20000010000000000000006 /* OverlayWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayWindow.swift; sourceTree = "<group>"; };
+		A20000010000000000000007 /* ToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarView.swift; sourceTree = "<group>"; };
+		A20000010000000000000008 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
+		A20000010000000000000009 /* SnapshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotService.swift; sourceTree = "<group>"; };
+		A2000001000000000000000A /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
+		A2000001000000000000000B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A2000001000000000000000C /* DrawOver.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DrawOver.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2000001000000000000000D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A2000001000000000000000E /* DrawOver.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DrawOver.entitlements; sourceTree = "<group>"; };
+		A2000001000000000000000F /* KeyboardShortcut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcut.swift; sourceTree = "<group>"; };
+		A20000010000000000000010 /* KeyRecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyRecorderView.swift; sourceTree = "<group>"; };
+		A20000010000000000000011 /* ToolbarFrameTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarFrameTracker.swift; sourceTree = "<group>"; };
+		A20000010000000000000012 /* DrawingInputMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingInputMonitor.swift; sourceTree = "<group>"; };
+		A20000010000000000000014 /* FocusManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusManager.swift; sourceTree = "<group>"; };
+		A20000010000000000000015 /* CanvasTextEditorManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasTextEditorManager.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000010000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000010000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A40000010000000000000002 /* DrawOver */,
+				A40000010000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A40000010000000000000002 /* DrawOver */ = {
+			isa = PBXGroup;
+			children = (
+				A20000010000000000000001 /* DrawOverApp.swift */,
+				A40000010000000000000004 /* Models */,
+				A40000010000000000000005 /* Views */,
+				A40000010000000000000006 /* Services */,
+				A2000001000000000000000B /* Assets.xcassets */,
+				A2000001000000000000000D /* Info.plist */,
+				A2000001000000000000000E /* DrawOver.entitlements */,
+			);
+			path = DrawOver;
+			sourceTree = "<group>";
+		};
+		A40000010000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A2000001000000000000000C /* DrawOver.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A40000010000000000000004 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A20000010000000000000002 /* DrawingTool.swift */,
+				A20000010000000000000003 /* Annotation.swift */,
+				A20000010000000000000004 /* AppState.swift */,
+				A2000001000000000000000F /* KeyboardShortcut.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A40000010000000000000005 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A20000010000000000000005 /* DrawingCanvasView.swift */,
+				A20000010000000000000006 /* OverlayWindow.swift */,
+				A20000010000000000000007 /* ToolbarView.swift */,
+				A20000010000000000000010 /* KeyRecorderView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A40000010000000000000006 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A20000010000000000000008 /* HotkeyManager.swift */,
+				A20000010000000000000009 /* SnapshotService.swift */,
+				A2000001000000000000000A /* MenuBarController.swift */,
+				A20000010000000000000011 /* ToolbarFrameTracker.swift */,
+				A20000010000000000000012 /* DrawingInputMonitor.swift */,
+				A20000010000000000000014 /* FocusManager.swift */,
+				A20000010000000000000015 /* CanvasTextEditorManager.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000010000000000000001 /* DrawOver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A70000010000000000000003 /* Build configuration list for PBXNativeTarget "DrawOver" */;
+			buildPhases = (
+				A60000010000000000000001 /* Sources */,
+				A30000010000000000000001 /* Frameworks */,
+				A60000010000000000000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = DrawOver;
+			productName = DrawOver;
+			productReference = A2000001000000000000000C /* DrawOver.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A80000010000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					A50000010000000000000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = A70000010000000000000001 /* Build configuration list for PBXProject "DrawOver" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A40000010000000000000001;
+			productRefGroup = A40000010000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000010000000000000001 /* DrawOver */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A60000010000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000001000000000000000B /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A60000010000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000010000000000000001 /* DrawOverApp.swift in Sources */,
+				A10000010000000000000002 /* DrawingTool.swift in Sources */,
+				A10000010000000000000003 /* Annotation.swift in Sources */,
+				A10000010000000000000004 /* AppState.swift in Sources */,
+				A10000010000000000000005 /* DrawingCanvasView.swift in Sources */,
+				A10000010000000000000006 /* OverlayWindow.swift in Sources */,
+				A10000010000000000000007 /* ToolbarView.swift in Sources */,
+				A10000010000000000000008 /* HotkeyManager.swift in Sources */,
+				A10000010000000000000009 /* SnapshotService.swift in Sources */,
+				A1000001000000000000000A /* MenuBarController.swift in Sources */,
+				A1000001000000000000000C /* KeyboardShortcut.swift in Sources */,
+				A1000001000000000000000D /* KeyRecorderView.swift in Sources */,
+				A1000001000000000000000E /* ToolbarFrameTracker.swift in Sources */,
+				A1000001000000000000000F /* DrawingInputMonitor.swift in Sources */,
+				A10000010000000000000011 /* FocusManager.swift in Sources */,
+				A10000010000000000000012 /* CanvasTextEditorManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A90000010000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A90000010000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		A90000010000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = DrawOver/DrawOver.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = DrawOver/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.6.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.drawover.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A90000010000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = DrawOver/DrawOver.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = DrawOver/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.6.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.drawover.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A70000010000000000000001 /* Build configuration list for PBXProject "DrawOver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A90000010000000000000001 /* Debug */,
+				A90000010000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A70000010000000000000003 /* Build configuration list for PBXNativeTarget "DrawOver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A90000010000000000000003 /* Debug */,
+				A90000010000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A80000010000000000000001 /* Project object */;
+}
