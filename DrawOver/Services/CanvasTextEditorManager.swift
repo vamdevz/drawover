@@ -27,14 +27,13 @@ final class CanvasTextEditorManager: NSObject {
         placeEditor(frame: CGRect(x: origin.x, y: origin.y, width: 200, height: 26), color: color)
     }
 
-    /// Compact caption field centered inside a shape.
+    /// Compact caption field anchored to the bottom of a shape.
     func placeEditor(in container: CGRect, color: NSColor) {
         captionContainerRect = container
         captionFontSize = 13
-        let width: CGFloat = min(120, max(72, container.width * 0.45))
+        let width: CGFloat = min(max(72, container.width * 0.55), max(container.width, 140))
         let height: CGFloat = 22
-        let origin = CGPoint(x: container.midX - width / 2, y: container.midY - height / 2)
-        placeEditor(frame: CGRect(x: origin.x, y: origin.y, width: width, height: height), color: color)
+        placeEditor(frame: captionFrame(in: container, width: width, height: height), color: color)
     }
 
     /// Compact caption on an arrow (double-click the line).
@@ -103,10 +102,7 @@ final class CanvasTextEditorManager: NSObject {
             let size = (text as NSString).size(withAttributes: attrs)
             let origin: CGPoint
             if let container = captionContainerRect {
-                origin = CGPoint(
-                    x: container.midX - size.width / 2,
-                    y: container.midY - size.height / 2
-                )
+                origin = captionTextOrigin(in: container, textSize: size)
             } else {
                 origin = field.frame.origin
             }
@@ -133,6 +129,24 @@ final class CanvasTextEditorManager: NSObject {
         }
         field.delegate = nil
         field.removeFromSuperview()
+    }
+
+    private static let shapeCaptionGap: CGFloat = 6
+
+    private func captionFrame(in container: CGRect, width: CGFloat, height: CGFloat) -> CGRect {
+        CGRect(
+            x: container.midX - width / 2,
+            y: container.minY - height - Self.shapeCaptionGap,
+            width: width,
+            height: height
+        )
+    }
+
+    private func captionTextOrigin(in container: CGRect, textSize: CGSize) -> CGPoint {
+        CGPoint(
+            x: container.midX - textSize.width / 2,
+            y: container.minY - textSize.height - Self.shapeCaptionGap
+        )
     }
 }
 
