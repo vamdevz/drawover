@@ -1,137 +1,173 @@
-# DrawOver v0.6
+# DrawOver
 
-A native macOS screen annotation app inspired by [Scribbble](https://www.scribbble.app/) — draw on top of any application with a hotkey-driven workflow, floating toolbar, and OS-level overlay capture compatible with Zoom, OBS, and screen sharing.
+Native macOS screen annotation app — draw on top of any application with a floating toolbar, global hotkeys, and overlay capture compatible with Zoom, OBS, and screen sharing.
 
-## Scribbble research summary
+Inspired by tools like [Scribbble](https://www.scribbble.app/), DrawOver is an independent open-source implementation built with Swift, SwiftUI, and AppKit.
 
-Scribbble is a Mac-first screen annotation tool (not to be confused with Dribbble). It targets presenters, streamers, teachers, and designers who need to mark up live content without leaving their current app.
+![macOS](https://img.shields.io/badge/macOS-13%2B-blue)
+![Swift](https://img.shields.io/badge/Swift-5.9%2B-orange)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-### Core value proposition
+## Features
 
-| Aspect | Scribbble approach |
-|--------|-------------------|
-| **Interaction model** | Press hotkey → draw on screen → press again to clear |
-| **Overlay** | OS-level drawing above all windows; captured by Zoom/OBS/Loom automatically |
-| **Distribution** | Menu bar / accessory app (no Dock icon clutter) |
-| **Pricing** | Free download, one-time license (no subscription) |
-| **Platform** | macOS 11+, Apple Silicon native |
+- **Pen, highlighter, arrow, rectangle, ellipse, text, eraser**
+- **Rectangle callouts** — drag a box, optional auto-caption below the shape, ⌃-drag for arrows
+- **Floating toolbar** — dock left/right, adjustable opacity
+- **Global hotkeys** — draw from any app (Accessibility permission required)
+- **Multi-monitor overlays** — per-screen annotation layers
+- **Snapshot to clipboard** — captures the active monitor with annotations composited
+- **Menu bar app** — no Dock icon clutter (`LSUIElement`)
 
-### Tool set (v0.6 parity target)
+## Quick start (download & run)
 
-| Tool | Purpose |
-|------|---------|
-| **Pen** | Freehand strokes for redlines and callouts |
-| **Highlighter** | Semi-transparent emphasis over text/UI |
-| **Arrow** | Quick directional callouts |
-| **Rectangle / Ellipse** | Shape framing, spacing boxes |
-| **Text** | Inline notes on screen |
-| **Spotlight** | Dim everything except a focus region |
-| **Measure** | On-screen pixel distance for design QA |
-| **Snapshot** | Capture full screen or region to clipboard |
-| **Eraser** | Remove strokes (DrawOver addition) |
+No Xcode required if you only want to run the app.
 
-### UI patterns
+### 1. Download
 
-1. **Floating toolbar** — narrow vertical strip with tool icons, color swatches, line width
-2. **Docking** — toolbar snaps to left or right screen edge (not only free-floating)
-3. **Visual language** — macOS-native materials (blur/vibrancy), SF Symbols, compact layout
-4. **Status indicator** — clear on/off state for drawing mode
-5. **Minimal chrome** — no main window; lives in menu bar
-
-### What Scribbble deliberately omits
-
-- Screen zoom (use macOS Accessibility zoom instead)
-- Built-in screen recording
-- Cursor highlight (Presentify’s differentiator)
-- In-file persistence (annotations are ephemeral, screen-overlay only)
-
-### Technical requirements to replicate
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Menu Bar App (LSUIElement)                             │
-│  ├── Global hotkeys (Carbon / CGEvent, Accessibility)   │
-│  ├── Full-screen overlay windows (per NSScreen)         │
-│  │   └── Transparent NSWindow @ screen-saver level      │
-│  ├── Floating NSPanel toolbar (SwiftUI)                 │
-│  ├── Core Graphics drawing canvas                       │
-│  └── ScreenCaptureKit for snapshots                     │
-└─────────────────────────────────────────────────────────┘
-```
-
-**Permissions required:**
-
-- **Accessibility** — global hotkeys when other apps are focused
-- **Screen Recording** — snapshot capture via ScreenCaptureKit
-
----
-
-## DrawOver implementation
-
-This repo implements the Scribbble-style workflow as a native Swift / SwiftUI + AppKit app.
-
-### Architecture
-
-```
-DrawOver/
-├── DrawOverApp.swift          # @main, settings, app delegate
-├── Models/
-│   ├── DrawingTool.swift      # Tool enum + shortcuts
-│   ├── Annotation.swift       # Drawable primitives + CG rendering
-│   └── AppState.swift         # Shared observable state
-├── Views/
-│   ├── DrawingCanvasView.swift  # NSView mouse handling + draw
-│   ├── OverlayWindow.swift      # Per-screen borderless windows
-│   └── ToolbarView.swift        # SwiftUI floating toolbar
-└── Services/
-    ├── HotkeyManager.swift      # Carbon global hotkeys
-    ├── SnapshotService.swift    # ScreenCaptureKit capture
-    └── MenuBarController.swift  # NSStatusItem + menu
-```
-
-### Keyboard shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `⌃⌘D` | Toggle drawing mode |
-| `⌃⌘C` | Clear all annotations |
-| `⌘Z` | Undo |
-| `⌃⌘S` | Snapshot to clipboard |
-| `⌥1` – `⌥8` | Select tools (pen → measure) |
-
-### Build & run
-
-**Requirements:** Xcode 15+ (full Xcode, not only Command Line Tools), macOS 13+
+**Option A — Clone this repository**
 
 ```bash
-cd DrawOver
+git clone https://github.com/vamdevz/drawover.git
+cd drawover
+```
+
+**Option B — Download ZIP from GitHub**
+
+1. Open [github.com/vamdevz/drawover](https://github.com/vamdevz/drawover)
+2. Click **Code → Download ZIP**
+3. Extract the archive (double-click `drawover-main.zip` in Finder)
+
+### 2. Extract the pre-built app (if using the zip inside `dist/`)
+
+```bash
+cd drawover/dist
+unzip DrawOver-macOS.zip
+```
+
+Or in Finder: double-click `dist/DrawOver-macOS.zip`, then drag `DrawOver.app` to **Applications**.
+
+### 3. Run
+
+```bash
+open dist/DrawOver.app
+```
+
+On first launch macOS may block the unsigned build:
+
+1. **System Settings → Privacy & Security**
+2. Click **Open Anyway** next to the DrawOver message  
+   — or right-click `DrawOver.app` → **Open** → **Open**
+
+### 4. Permissions
+
+Grant when prompted:
+
+| Permission | Why |
+|------------|-----|
+| **Accessibility** | Global hotkeys while other apps are focused |
+| **Screen Recording** | Snapshot capture via ScreenCaptureKit |
+
+### 5. Use
+
+1. Click the **pencil icon** in the menu bar (or press **⌥D**) to start drawing
+2. Use the floating toolbar to pick tools and colors
+3. Click the **green dot** again to stop — annotations clear from the screen
+4. Press **⌥C** to clear all, **⌘⇧S** snapshot (defaults may vary — see Settings → Shortcuts)
+
+## Build from source
+
+**Requirements:** Xcode 15+, macOS 13+
+
+```bash
+git clone https://github.com/vamdevz/drawover.git
+cd drawover
 open DrawOver.xcodeproj
 # Product → Run (⌘R)
 ```
 
-Or from terminal:
+Or from Terminal:
 
 ```bash
-xcodebuild -project DrawOver.xcodeproj -scheme DrawOver -configuration Release build
-open build/Release/DrawOver.app
+./build.sh
+open build/Build/Products/Debug/DrawOver.app
 ```
 
-On first launch:
+Release build:
 
-1. Click the menu bar pencil icon (or press `⌃⌘D`) to enable drawing mode
-2. Use the floating toolbar on the right to pick tools and colors
-3. Draw over any app — annotations appear on the overlay layer
-4. Press `⌃⌘C` to clear, or click the menu bar icon again to pause drawing
+```bash
+xcodebuild -project DrawOver.xcodeproj -scheme DrawOver -configuration Release \
+  -derivedDataPath build CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO
+open build/Build/Products/Release/DrawOver.app
+```
 
-### Roadmap (beyond v0.6)
+## Repository layout
 
-- [ ] Interactive region-select snapshot (marquee)
+```
+drawover/
+├── DrawOver/                 # Swift source code
+│   ├── Models/               # AppState, annotations, tools, shortcuts
+│   ├── Views/                # Canvas, overlay windows, toolbar
+│   └── Services/             # Hotkeys, snapshots, menu bar
+├── DrawOver.xcodeproj/       # Xcode project
+├── dist/
+│   ├── DrawOver.app          # Pre-built Release binary (macOS)
+│   └── DrawOver-macOS.zip    # Same app, zipped for download
+├── build.sh                  # Local debug build script
+├── LICENSE                   # MIT
+└── README.md
+```
+
+## Keyboard shortcuts (defaults)
+
+| Shortcut | Action |
+|----------|--------|
+| `⌥D` | Toggle drawing mode |
+| `Esc` | Stop drawing / dismiss caption |
+| `⌥C` | Clear all annotations |
+| `⌘Z` | Undo |
+| `⌘S` | Snapshot to clipboard |
+| `⌥1` – `⌥7` | Select tools |
+
+Customize in **Settings → Shortcuts** (menu bar → Settings).
+
+## Rectangle tool tips
+
+| Gesture | Action |
+|---------|--------|
+| Drag | Draw rectangle |
+| ⌃-drag | Draw arrow |
+| ⇧-drag | Open caption after drawing |
+| Double-click box | Add caption below the box |
+| ⌥-click | Delete box / arrow / caption |
+
+## Architecture
+
+```
+Menu Bar App (LSUIElement)
+├── Global hotkeys (Carbon, Accessibility)
+├── Full-screen overlay windows (per NSScreen, screen-saver level)
+├── Floating NSPanel toolbar (SwiftUI)
+├── Core Graphics drawing canvas
+└── ScreenCaptureKit snapshots
+```
+
+## Contributing
+
+Issues and pull requests are welcome on [GitHub](https://github.com/vamdevz/drawover).
+
+1. Fork the repo
+2. Create a feature branch
+3. Open a PR with a clear description and test notes
+
+## Roadmap
+
+- [ ] Marquee region snapshot
 - [ ] Persist toolbar position across launches
-- [ ] Multi-monitor coordinate normalization
-- [ ] Cursor highlight mode (Presentify-style)
+- [ ] Code signing / notarization for easier first launch
 - [ ] Export annotated still to file
-- [ ] App Store sandbox + notarization
 
 ## License
 
-MIT — for learning and personal use. Scribbble is a separate commercial product; DrawOver is an independent open implementation inspired by its UX patterns.
+MIT — see [LICENSE](LICENSE).
+
+DrawOver is not affiliated with Scribbble or any commercial screen-annotation product.
