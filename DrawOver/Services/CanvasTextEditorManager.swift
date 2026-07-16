@@ -161,7 +161,7 @@ final class CanvasTextEditorManager: NSObject {
         let mid = arrowMidpoint(from: from, to: to)
         return CGRect(
             x: mid.x - width / 2,
-            y: mid.y - height / 2,
+            y: mid.y + Self.shapeCaptionGap,
             width: width,
             height: height
         )
@@ -171,7 +171,7 @@ final class CanvasTextEditorManager: NSObject {
         let mid = arrowMidpoint(from: from, to: to)
         return CGPoint(
             x: mid.x - textSize.width / 2,
-            y: mid.y - textSize.height / 2
+            y: mid.y + Self.shapeCaptionGap
         )
     }
 
