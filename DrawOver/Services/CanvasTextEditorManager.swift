@@ -158,32 +158,25 @@ final class CanvasTextEditorManager: NSObject {
     }
 
     private func captionFrameBelowArrow(from: CGPoint, to: CGPoint, width: CGFloat, height: CGFloat) -> CGRect {
-        let anchor = arrowCaptionAnchor(from: from, to: to)
+        let mid = arrowMidpoint(from: from, to: to)
         return CGRect(
-            x: anchor.x - width / 2,
-            y: anchor.y + Self.shapeCaptionGap,
+            x: mid.x - width / 2,
+            y: mid.y - height / 2,
             width: width,
             height: height
         )
     }
 
     private func captionTextOriginBelowArrow(from: CGPoint, to: CGPoint, textSize: CGSize) -> CGPoint {
-        let anchor = arrowCaptionAnchor(from: from, to: to)
+        let mid = arrowMidpoint(from: from, to: to)
         return CGPoint(
-            x: anchor.x - textSize.width / 2,
-            y: anchor.y + Self.shapeCaptionGap
+            x: mid.x - textSize.width / 2,
+            y: mid.y - textSize.height / 2
         )
     }
 
-    /// Lowest point on the arrow segment (flipped coords: larger Y = lower on screen).
-    private func arrowCaptionAnchor(from: CGPoint, to: CGPoint) -> CGPoint {
-        if from.y == to.y {
-            return CGPoint(x: (from.x + to.x) / 2, y: from.y)
-        }
-        if from.y >= to.y {
-            return from
-        }
-        return to
+    private func arrowMidpoint(from: CGPoint, to: CGPoint) -> CGPoint {
+        CGPoint(x: (from.x + to.x) / 2, y: (from.y + to.y) / 2)
     }
 }
 
