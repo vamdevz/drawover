@@ -79,15 +79,16 @@ final class DrawingCanvasView: NSView {
             if deleteAnnotationAtPoint(point) { return }
         }
 
-        if event.clickCount == 2, isShapeToolActive {
+        if event.clickCount == 2 {
             if textEditors.hasOpenEditors { textEditors.commitAll() }
             let color = appState?.nsStrokeColor ?? .red
             if let container = shapeAnnotationRect(at: point) {
                 textEditors.placeEditor(in: container, color: color)
                 return
             }
-            if arrowAnnotation(at: point) != nil {
-                textEditors.placeEditor(forArrowAt: point, color: color)
+            if let arrow = arrowAnnotation(at: point),
+               case let .arrow(from, to, _, _) = arrow.kind {
+                textEditors.placeEditor(forArrowFrom: from, to: to, color: color)
                 return
             }
         }

@@ -31,7 +31,7 @@ final class DrawingInputMonitor {
             Task { @MainActor in
                 guard let appState = self?.appState else { return }
                 guard appState.isAppEnabled, appState.isDrawingModeActive else { return }
-                appState.clearDrawingAndStayActive()
+                appState.handleEscapeKey()
             }
         }
     }

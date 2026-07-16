@@ -29,6 +29,8 @@ final class AppState: ObservableObject {
 
     private var undoStack: [[Annotation]] = []
     private var cancellables = Set<AnyCancellable>()
+    private var lastEscapeTime: Date?
+    private let escapeDoubleTapInterval: TimeInterval = 0.45
 
     init() {
         loadPreferences()
@@ -57,6 +59,20 @@ final class AppState: ObservableObject {
         setAppEnabled(!isAppEnabled)
     }
 
+    /// First Esc clears the canvas; a second Esc within ~0.45s turns drawing off (green dot).
+    func handleEscapeKey() {
+        guard isAppEnabled, isDrawingModeActive else { return }
+
+        let now = Date()
+        if let last = lastEscapeTime, now.timeIntervalSince(last) <= escapeDoubleTapInterval {
+            lastEscapeTime = nil
+            stopDrawing()
+        } else {
+            lastEscapeTime = now
+            clearDrawingAndStayActive()
+        }
+    }
+
     /// Clears the canvas but keeps drawing mode active (green dot stays on).
     func clearDrawingAndStayActive() {
         guard isAppEnabled, isDrawingModeActive else { return }
@@ -80,6 +96,7 @@ final class AppState: ObservableObject {
         isTextInputActive = false
 
         isDrawingModeActive = false
+        lastEscapeTime = nil
         FocusManager.releaseKeyboard()
         NotificationCenter.default.post(name: .cancelCanvasInteraction, object: nil)
         NotificationCenter.default.post(name: .bringToolbarToFront, object: nil)
