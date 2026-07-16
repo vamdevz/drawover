@@ -86,7 +86,12 @@ final class DrawingCanvasView: NSView {
 
     private var supportsObjectDrag: Bool {
         guard let tool = appState?.selectedTool else { return false }
-        return tool != .eraser
+        switch tool {
+        case .eraser, .pen, .highlighter:
+            return false
+        default:
+            return true
+        }
     }
 
     private func objectDragCaptures(point: CGPoint) -> Bool {

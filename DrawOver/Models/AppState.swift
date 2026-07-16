@@ -17,7 +17,7 @@ final class AppState: ObservableObject {
     @Published var toolbarOpacity: Double = 0.92
     @Published var toolbarUseTransparentBackground = true
     @Published var clearOnToggleOff = true
-    @Published var clearOnToolSwitch = true
+    @Published var clearOnToolSwitch = false
     @Published var toolsOnlyWhileDrawing = true
     @Published var captionAfterShape = false
     @Published var spotlightDimOpacity: CGFloat = 0.55
@@ -245,7 +245,13 @@ final class AppState: ObservableObject {
         toolbarOpacity = defaults.object(forKey: "toolbarOpacity") as? Double ?? 0.92
         toolbarUseTransparentBackground = defaults.object(forKey: "toolbarUseTransparentBackground") as? Bool ?? true
         clearOnToggleOff = defaults.object(forKey: "clearOnToggleOff") as? Bool ?? true
-        clearOnToolSwitch = defaults.object(forKey: "clearOnToolSwitch") as? Bool ?? true
+        if defaults.bool(forKey: "clearOnToolSwitchDefaultOffApplied") {
+            clearOnToolSwitch = defaults.object(forKey: "clearOnToolSwitch") as? Bool ?? false
+        } else {
+            clearOnToolSwitch = false
+            defaults.set(false, forKey: "clearOnToolSwitch")
+            defaults.set(true, forKey: "clearOnToolSwitchDefaultOffApplied")
+        }
         toolsOnlyWhileDrawing = defaults.object(forKey: "toolsOnlyWhileDrawing") as? Bool ?? true
         captionAfterShape = defaults.object(forKey: "captionAfterShape") as? Bool ?? false
         if let dock = defaults.string(forKey: "toolbarDock"), let value = ToolbarDock(rawValue: dock) {

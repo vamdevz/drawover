@@ -8,7 +8,7 @@ Inspired by tools like [Scribbble](https://www.scribbble.app/), DrawOver is an i
 ![Swift](https://img.shields.io/badge/Swift-5.9%2B-orange)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-**New here?** Read the **[User Guide](docs/USER_GUIDE.md)** — what DrawOver is, toolbar overview, and how to use every tool (including rectangle callouts and arrows).
+**New here?** Read the **[User Guide](docs/USER_GUIDE.md)** for setup and workflows, or **[Tools Reference](docs/TOOLS.md)** for a step-by-step guide to every tool.
 
 ## Features
 
@@ -107,7 +107,8 @@ open build/Build/Products/Release/DrawOver.app
 ```
 drawover/
 ├── docs/
-│   ├── USER_GUIDE.md         # End-user guide (tools, shortcuts, workflows)
+│   ├── USER_GUIDE.md         # End-user guide (setup, shortcuts, workflows)
+│   ├── TOOLS.md              # Step-by-step reference for every drawing tool
 │   └── images/toolbar.png    # Toolbar screenshot
 ├── DrawOver/                 # Swift source code
 │   ├── Models/               # AppState, annotations, tools, shortcuts
