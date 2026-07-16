@@ -23,7 +23,7 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Codable {
         case .clearAll: return "Clear all"
         case .undo: return "Undo"
         case .snapshot: return "Snapshot"
-        case .stopDrawing: return "Stop drawing (exit)"
+        case .stopDrawing: return "Clear drawing (Esc)"
         case .toolPen: return "Pen"
         case .toolHighlighter: return "Highlighter"
         case .toolArrow: return "Arrow"

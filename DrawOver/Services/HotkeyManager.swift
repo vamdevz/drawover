@@ -140,7 +140,7 @@ final class HotkeyManager {
         case .toggleDrawing:
             appState.toggleDrawingMode()
         case .stopDrawing:
-            appState.stopDrawing()
+            appState.clearDrawingAndStayActive()
         case .clearAll:
             appState.clearAll(dismissText: true)
         case .undo:

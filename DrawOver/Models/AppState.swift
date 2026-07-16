@@ -57,7 +57,16 @@ final class AppState: ObservableObject {
         setAppEnabled(!isAppEnabled)
     }
 
-    /// Turn off drawing mode (green dot off) — used by Esc and exit actions.
+    /// Clears the canvas but keeps drawing mode active (green dot stays on).
+    func clearDrawingAndStayActive() {
+        guard isAppEnabled, isDrawingModeActive else { return }
+        clearAll(dismissText: true, recordUndo: true)
+        FocusManager.releaseKeyboard()
+        NotificationCenter.default.post(name: .cancelCanvasInteraction, object: nil)
+        NotificationCenter.default.post(name: .bringToolbarToFront, object: nil)
+    }
+
+    /// Turn off drawing mode (green dot off) — used by the green dot and tool re-click.
     func stopDrawing() {
         guard isAppEnabled, isDrawingModeActive else { return }
 

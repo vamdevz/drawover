@@ -2,7 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 import Combine
 
-/// Handles Esc-to-exit while drawing. Uses a global monitor so Esc works even when another app is focused.
+/// Handles Esc-to-clear while drawing. Uses a global monitor so Esc works even when another app is focused.
 @MainActor
 final class DrawingInputMonitor {
     private weak var appState: AppState?
@@ -31,7 +31,7 @@ final class DrawingInputMonitor {
             Task { @MainActor in
                 guard let appState = self?.appState else { return }
                 guard appState.isAppEnabled, appState.isDrawingModeActive else { return }
-                appState.stopDrawing()
+                appState.clearDrawingAndStayActive()
             }
         }
     }

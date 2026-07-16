@@ -411,9 +411,6 @@ final class DrawingCanvasView: NSView {
                 let rect = rectFrom(start, point)
                 if rect.width > 2, rect.height > 2 {
                     appState?.addAnnotation(Annotation(kind: .rectangle(rect: rect, lineWidth: width, color: color, filled: false)), displayID: displayID)
-                    if shouldOpenCaptionAfterShapeDraw() {
-                        textEditors.placeEditor(in: rect, color: color)
-                    }
                 }
             }
         case .ellipse:
@@ -426,9 +423,6 @@ final class DrawingCanvasView: NSView {
                 let rect = rectFrom(start, point)
                 if rect.width > 2, rect.height > 2 {
                     appState?.addAnnotation(Annotation(kind: .ellipse(rect: rect, lineWidth: width, color: color, filled: false)), displayID: displayID)
-                    if shouldOpenCaptionAfterShapeDraw() {
-                        textEditors.placeEditor(in: rect, color: color)
-                    }
                 }
             }
         default:
@@ -567,11 +561,6 @@ final class DrawingCanvasView: NSView {
             .filter { (($0.x - center.x) * dx + ($0.y - center.y) * dy) > 0 }
             .min(by: { distance($0, target) < distance($1, target) })
             ?? CGPoint(x: rect.midX, y: rect.minY)
-    }
-
-    private func shouldOpenCaptionAfterShapeDraw() -> Bool {
-        if appState?.captionAfterShape == true { return true }
-        return NSEvent.modifierFlags.contains(.shift)
     }
 
     @discardableResult

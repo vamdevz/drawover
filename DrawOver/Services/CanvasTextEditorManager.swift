@@ -159,14 +159,10 @@ extension CanvasTextEditorManager: NSTextFieldDelegate {
             return true
         }
         if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
-            if canvas?.appState?.selectedTool == .text {
-                canvas?.appState?.stopDrawing()
-            } else {
-                captionContainerRect = nil
-                remove(field: field)
-                canvas?.notifyTextEditorsChanged()
-                FocusManager.releaseKeyboard()
-            }
+            captionContainerRect = nil
+            remove(field: field)
+            canvas?.notifyTextEditorsChanged()
+            FocusManager.releaseKeyboard()
             return true
         }
         return false

@@ -228,7 +228,7 @@ struct ToolbarView: View {
         .buttonStyle(ToolbarButtonStyle())
         .disabled(!appState.isAppEnabled)
         .opacity(appState.isAppEnabled ? 1 : 0.4)
-        .help(appState.isDrawingModeActive ? "Click to stop · Esc to exit" : "Click to start drawing")
+        .help(appState.isDrawingModeActive ? "Click to stop · Esc to clear" : "Click to start drawing")
     }
 
     private var toolButtons: some View {
@@ -271,7 +271,7 @@ struct ToolbarView: View {
                     )
             }
             .buttonStyle(ToolbarButtonStyle())
-            .help("Auto-caption each new box. ⌃-drag = arrow. Double-click box or arrow to caption. ⌥-tap = delete.")
+            .help("Double-click a box or arrow to caption. ⌃-drag = arrow. ⌥-tap = delete.")
         }
     }
 
