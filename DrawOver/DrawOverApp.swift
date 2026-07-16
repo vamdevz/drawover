@@ -146,6 +146,7 @@ struct SettingsView: View {
                 ShortcutRecorderRow(action: .stopDrawing, store: shortcutStore)
                 ShortcutRecorderRow(action: .clearAll, store: shortcutStore)
                 ShortcutRecorderRow(action: .undo, store: shortcutStore)
+                ShortcutRecorderRow(action: .redo, store: shortcutStore)
                 ShortcutRecorderRow(action: .snapshot, store: shortcutStore)
             }
 

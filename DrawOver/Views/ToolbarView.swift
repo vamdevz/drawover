@@ -355,6 +355,9 @@ struct ToolbarView: View {
             ActionButton(icon: "arrow.uturn.backward", help: "Undo (\(appState.shortcutLabel(for: .undo)))") {
                 appState.undo()
             }
+            ActionButton(icon: "arrow.uturn.forward", help: "Redo (\(appState.shortcutLabel(for: .redo)))") {
+                appState.redo()
+            }
             ActionButton(icon: "trash", help: "Clear all (\(appState.shortcutLabel(for: .clearAll)))") {
                 appState.clearAll(dismissText: true)
             }

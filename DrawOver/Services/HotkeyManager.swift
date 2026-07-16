@@ -75,7 +75,7 @@ final class HotkeyManager {
         unregisterAll()
         guard let appState, appState.isAppEnabled else { return }
 
-        let globalActions: [ShortcutAction] = [.toggleDrawing, .clearAll, .undo, .snapshot]
+        let globalActions: [ShortcutAction] = [.toggleDrawing, .clearAll, .undo, .redo, .snapshot]
         let toolActions: [ShortcutAction] = [
             .toolPen, .toolHighlighter, .toolArrow, .toolRectangle,
             .toolEllipse, .toolText, .toolEraser
@@ -132,7 +132,7 @@ final class HotkeyManager {
 
         guard let action = ShortcutAction.allCases.first(where: { $0.hotkeyID == hotkeyID.id }) else { return }
 
-        if appState.isTextInputActive, action != .stopDrawing {
+        if appState.isTextInputActive, action != .stopDrawing, action != .undo, action != .redo {
             return
         }
 
@@ -145,6 +145,8 @@ final class HotkeyManager {
             appState.clearAll(dismissText: true)
         case .undo:
             appState.undo()
+        case .redo:
+            appState.redo()
         case .snapshot:
             NotificationCenter.default.post(name: .takeSnapshot, object: nil)
         case .toolPen, .toolHighlighter, .toolArrow, .toolRectangle, .toolEllipse, .toolText, .toolEraser:

@@ -20,6 +20,11 @@ final class DrawingCanvasView: NSView {
     private var pendingTextDragID: UUID?
     private var pendingTextDragStart: CGPoint = .zero
 
+    private var pendingObjectDragIDs: Set<UUID>?
+    private var pendingObjectDragStart: CGPoint = .zero
+    private var draggingObjectIDs: Set<UUID>?
+    private var objectDragLastPoint: CGPoint = .zero
+
     private enum ShapeDragMode {
         case box
         case arrow
@@ -38,8 +43,9 @@ final class DrawingCanvasView: NSView {
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard bounds.contains(point) else { return nil }
 
-        // Canvas owns caption interactions (text tool, shape caption, or caption drag).
-        if handlesCaptionInput || shapeToolCaptures(point: point), appState?.isDrawingModeActive == true {
+        // Canvas owns caption interactions (text tool, shape caption, caption drag, object drag).
+        if handlesCaptionInput || captionDragCaptures(point: point) || objectDragCaptures(point: point),
+           appState?.isDrawingModeActive == true {
             return self
         }
 
@@ -64,8 +70,27 @@ final class DrawingCanvasView: NSView {
         return tool == .rectangle || tool == .ellipse
     }
 
-    private func shapeToolCaptures(point: CGPoint) -> Bool {
-        isShapeToolActive && textAnnotation(at: point, generous: true) != nil
+    private var supportsCaptionDrag: Bool {
+        guard let tool = appState?.selectedTool else { return false }
+        switch tool {
+        case .rectangle, .ellipse, .arrow:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func captionDragCaptures(point: CGPoint) -> Bool {
+        supportsCaptionDrag && textAnnotation(at: point, generous: true) != nil
+    }
+
+    private var supportsObjectDrag: Bool {
+        guard let tool = appState?.selectedTool else { return false }
+        return tool != .eraser
+    }
+
+    private func objectDragCaptures(point: CGPoint) -> Bool {
+        supportsObjectDrag && annotationAt(point: point) != nil
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -94,12 +119,18 @@ final class DrawingCanvasView: NSView {
         }
 
         if handlesCaptionInput {
-            handleCaptionMouseDown(at: point)
+            if handleCaptionMouseDown(at: point) { return }
+        }
+
+        if supportsCaptionDrag, let annotation = textAnnotation(at: point, generous: true) {
+            beginPendingTextDrag(annotation: annotation, at: point)
             return
         }
 
-        if isShapeToolActive, let annotation = textAnnotation(at: point, generous: true) {
-            beginPendingTextDrag(annotation: annotation, at: point)
+        if supportsObjectDrag,
+           !event.modifierFlags.contains(.control),
+           let annotation = annotationAt(point: point) {
+            beginPendingObjectDrag(annotation: annotation, at: point)
             return
         }
 
@@ -113,26 +144,33 @@ final class DrawingCanvasView: NSView {
         textDragOffset = CGPoint(x: point.x - origin.x, y: point.y - origin.y)
     }
 
-    private func handleCaptionMouseDown(at point: CGPoint) {
+    @discardableResult
+    private func handleCaptionMouseDown(at point: CGPoint) -> Bool {
         if let field = textEditors.field(at: point) {
             pendingFieldFocus = field
             pendingDragStart = point
             fieldDragOffset = CGPoint(x: point.x - field.frame.origin.x, y: point.y - field.frame.origin.y)
-            return
+            return true
         }
 
         if let annotation = textAnnotation(at: point) {
             beginDraggingText(annotation: annotation, at: point)
-            return
+            return true
         }
 
         if textEditors.hasOpenEditors {
             textEditors.commitAll()
-            return
+            return true
         }
 
-        guard appState?.selectedTool == .text else { return }
+        guard appState?.selectedTool == .text else { return false }
+
+        if annotationAt(point: point) != nil {
+            return false
+        }
+
         textEditors.placeEditor(at: point, color: appState?.nsStrokeColor ?? .red)
+        return true
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -144,6 +182,14 @@ final class DrawingCanvasView: NSView {
                 id: id,
                 origin: CGPoint(x: point.x - textDragOffset.x, y: point.y - textDragOffset.y)
             )
+            needsDisplay = true
+            return
+        }
+
+        if let ids = draggingObjectIDs {
+            let delta = CGPoint(x: point.x - objectDragLastPoint.x, y: point.y - objectDragLastPoint.y)
+            appState?.translateAnnotations(ids: ids, by: delta)
+            objectDragLastPoint = point
             needsDisplay = true
             return
         }
@@ -179,6 +225,19 @@ final class DrawingCanvasView: NSView {
             return
         }
 
+        if let pendingIDs = pendingObjectDragIDs {
+            if distance(point, pendingObjectDragStart) > 4 {
+                appState?.beginUndoableChange()
+                draggingObjectIDs = pendingIDs
+                pendingObjectDragIDs = nil
+                let delta = CGPoint(x: point.x - objectDragLastPoint.x, y: point.y - objectDragLastPoint.y)
+                appState?.translateAnnotations(ids: pendingIDs, by: delta)
+                objectDragLastPoint = point
+                needsDisplay = true
+            }
+            return
+        }
+
         guard !handlesCaptionInput else { return }
         performMouseDragged(at: point)
     }
@@ -195,6 +254,17 @@ final class DrawingCanvasView: NSView {
 
         if pendingTextDragID != nil {
             pendingTextDragID = nil
+            return
+        }
+
+        if draggingObjectIDs != nil {
+            draggingObjectIDs = nil
+            NotificationCenter.default.post(name: .bringToolbarToFront, object: nil)
+            return
+        }
+
+        if pendingObjectDragIDs != nil {
+            pendingObjectDragIDs = nil
             return
         }
 
@@ -244,6 +314,8 @@ final class DrawingCanvasView: NSView {
         currentPoints = []
         draggingTextID = nil
         pendingTextDragID = nil
+        draggingObjectIDs = nil
+        pendingObjectDragIDs = nil
         draggingField = nil
         pendingFieldFocus = nil
         shapeDragMode = .box
@@ -350,9 +422,6 @@ final class DrawingCanvasView: NSView {
 
             shapeDragMode = .box
             arrowAnchorRect = nil
-            if shapeAnnotation(at: point) != nil {
-                return
-            }
         }
 
         switch appState?.selectedTool {
@@ -494,6 +563,42 @@ final class DrawingCanvasView: NSView {
         let t = max(0, min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)))
         let projection = CGPoint(x: a.x + t * dx, y: a.y + t * dy)
         return distance(p, projection)
+    }
+
+    private func annotationAt(point: CGPoint) -> Annotation? {
+        guard let state = appState else { return nil }
+        let threshold = max(state.lineWidth, 12)
+        return screenAnnotations.reversed().first { annotation in
+            annotationIntersects(annotation, point: point, threshold: threshold)
+        }
+    }
+
+    private func beginPendingObjectDrag(annotation: Annotation, at point: CGPoint) {
+        var ids: Set<UUID> = [annotation.id]
+        ids.formUnion(companionTextIDs(for: annotation))
+        pendingObjectDragIDs = ids
+        pendingObjectDragStart = point
+        objectDragLastPoint = point
+    }
+
+    private func companionTextIDs(for annotation: Annotation) -> Set<UUID> {
+        if case .text = annotation.kind {
+            return []
+        }
+
+        guard var hitRect = annotation.kind.boundingRect(padding: 8) else { return [] }
+        hitRect = hitRect.insetBy(dx: -16, dy: -24)
+
+        var ids = Set<UUID>()
+        for candidate in screenAnnotations {
+            guard candidate.id != annotation.id else { continue }
+            guard case let .text(content, origin, fontSize, _) = candidate.kind else { continue }
+            let textBounds = AnnotationKind.textBounds(content: content, origin: origin, fontSize: fontSize, padding: 4)
+            if hitRect.intersects(textBounds) {
+                ids.insert(candidate.id)
+            }
+        }
+        return ids
     }
 
     private func textAnnotation(at point: CGPoint, generous: Bool = false) -> Annotation? {

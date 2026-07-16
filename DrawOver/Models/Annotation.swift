@@ -83,6 +83,83 @@ extension AnnotationKind {
         }
     }
 
+    func translated(by delta: CGPoint) -> AnnotationKind {
+        switch self {
+        case let .stroke(points, lineWidth, color, opacity, isHighlighter):
+            return .stroke(
+                points: points.map { CGPoint(x: $0.x + delta.x, y: $0.y + delta.y) },
+                lineWidth: lineWidth,
+                color: color,
+                opacity: opacity,
+                isHighlighter: isHighlighter
+            )
+        case let .arrow(from, to, lineWidth, color):
+            return .arrow(
+                from: CGPoint(x: from.x + delta.x, y: from.y + delta.y),
+                to: CGPoint(x: to.x + delta.x, y: to.y + delta.y),
+                lineWidth: lineWidth,
+                color: color
+            )
+        case let .rectangle(rect, lineWidth, color, filled):
+            return .rectangle(
+                rect: rect.offsetBy(dx: delta.x, dy: delta.y),
+                lineWidth: lineWidth,
+                color: color,
+                filled: filled
+            )
+        case let .ellipse(rect, lineWidth, color, filled):
+            return .ellipse(
+                rect: rect.offsetBy(dx: delta.x, dy: delta.y),
+                lineWidth: lineWidth,
+                color: color,
+                filled: filled
+            )
+        case let .text(content, origin, fontSize, color):
+            return .text(
+                content: content,
+                origin: CGPoint(x: origin.x + delta.x, y: origin.y + delta.y),
+                fontSize: fontSize,
+                color: color
+            )
+        case let .spotlight(rect, cornerRadius, dimOpacity):
+            return .spotlight(
+                rect: rect.offsetBy(dx: delta.x, dy: delta.y),
+                cornerRadius: cornerRadius,
+                dimOpacity: dimOpacity
+            )
+        case let .measure(from, to, label):
+            return .measure(
+                from: CGPoint(x: from.x + delta.x, y: from.y + delta.y),
+                to: CGPoint(x: to.x + delta.x, y: to.y + delta.y),
+                label: label
+            )
+        }
+    }
+
+    func boundingRect(padding: CGFloat = 0) -> CGRect? {
+        switch self {
+        case let .stroke(points, lineWidth, _, _, _):
+            guard let first = points.first else { return nil }
+            var rect = CGRect(origin: first, size: .zero)
+            for point in points.dropFirst() {
+                rect = rect.union(CGRect(origin: point, size: .zero))
+            }
+            let inset = -max(lineWidth, padding)
+            return rect.insetBy(dx: inset, dy: inset)
+        case let .arrow(from, to, lineWidth, _):
+            let rect = CGRect(x: min(from.x, to.x), y: min(from.y, to.y), width: abs(to.x - from.x), height: abs(to.y - from.y))
+            let inset = -max(lineWidth, padding)
+            return rect.insetBy(dx: inset, dy: inset)
+        case let .rectangle(rect, _, _, _), let .ellipse(rect, _, _, _), let .spotlight(rect, _, _):
+            return rect.insetBy(dx: -padding, dy: -padding)
+        case let .text(content, origin, fontSize, _):
+            return Self.textBounds(content: content, origin: origin, fontSize: fontSize, padding: padding)
+        case let .measure(from, to, _):
+            let rect = CGRect(x: min(from.x, to.x), y: min(from.y, to.y), width: abs(to.x - from.x), height: abs(to.y - from.y))
+            return rect.insetBy(dx: -padding, dy: -padding)
+        }
+    }
+
     static func textBounds(content: String, origin: CGPoint, fontSize: CGFloat, padding: CGFloat = 10) -> CGRect {
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: fontSize, weight: .semibold)

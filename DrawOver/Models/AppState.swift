@@ -28,6 +28,7 @@ final class AppState: ObservableObject {
     let shortcutStore = ShortcutStore.shared
 
     private var undoStack: [[Annotation]] = []
+    private var redoStack: [[Annotation]] = []
     private var cancellables = Set<AnyCancellable>()
     private var lastEscapeTime: Date?
     private let escapeDoubleTapInterval: TimeInterval = 0.45
@@ -148,12 +149,33 @@ final class AppState: ObservableObject {
         annotations[idx].kind = .text(content: content, origin: origin, fontSize: fontSize, color: color)
     }
 
+    func translateAnnotations(ids: Set<UUID>, by delta: CGPoint) {
+        guard delta.x != 0 || delta.y != 0 else { return }
+        for idx in annotations.indices where ids.contains(annotations[idx].id) {
+            annotations[idx].kind = annotations[idx].kind.translated(by: delta)
+        }
+    }
+
     func undo() {
         guard let previous = undoStack.popLast() else { return }
+        redoStack.append(annotations)
+        trimHistoryStack(&redoStack)
         NotificationCenter.default.post(name: .annotationsCleared, object: nil)
         isTextInputActive = false
         annotations = previous
     }
+
+    func redo() {
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append(annotations)
+        trimHistoryStack(&undoStack)
+        NotificationCenter.default.post(name: .annotationsCleared, object: nil)
+        isTextInputActive = false
+        annotations = next
+    }
+
+    var canUndo: Bool { !undoStack.isEmpty }
+    var canRedo: Bool { !redoStack.isEmpty }
 
     /// Select a tool — re-clicking the active tool toggles drawing off; picking a tool while off turns drawing on.
     func selectTool(_ tool: DrawingTool) {
@@ -203,9 +225,14 @@ final class AppState: ObservableObject {
     }
 
     private func pushUndo() {
+        redoStack.removeAll()
         undoStack.append(annotations)
-        if undoStack.count > 50 {
-            undoStack.removeFirst()
+        trimHistoryStack(&undoStack)
+    }
+
+    private func trimHistoryStack(_ stack: inout [[Annotation]]) {
+        if stack.count > 50 {
+            stack.removeFirst()
         }
     }
 

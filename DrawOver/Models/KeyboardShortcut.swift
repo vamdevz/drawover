@@ -5,6 +5,7 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Codable {
     case toggleDrawing
     case clearAll
     case undo
+    case redo
     case snapshot
     case stopDrawing
     case toolPen
@@ -22,6 +23,7 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Codable {
         case .toggleDrawing: return "Toggle drawing"
         case .clearAll: return "Clear all"
         case .undo: return "Undo"
+        case .redo: return "Redo"
         case .snapshot: return "Snapshot"
         case .stopDrawing: return "Clear (Esc) / exit (Esc×2)"
         case .toolPen: return "Pen"
@@ -39,6 +41,7 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Codable {
         case .toggleDrawing: return 1
         case .clearAll: return 2
         case .undo: return 3
+        case .redo: return 14
         case .snapshot: return 4
         case .stopDrawing: return 5
         case .toolPen: return 6
@@ -163,6 +166,7 @@ final class ShortcutStore: ObservableObject {
             .toggleDrawing: KeyboardShortcut(action: .toggleDrawing, keyCode: UInt32(kVK_ANSI_D), carbonModifiers: UInt32(optionKey)),
             .clearAll: KeyboardShortcut(action: .clearAll, keyCode: UInt32(kVK_ANSI_C), carbonModifiers: UInt32(optionKey)),
             .undo: KeyboardShortcut(action: .undo, keyCode: UInt32(kVK_ANSI_Z), carbonModifiers: UInt32(cmdKey)),
+            .redo: KeyboardShortcut(action: .redo, keyCode: UInt32(kVK_ANSI_Z), carbonModifiers: UInt32(cmdKey | shiftKey)),
             .snapshot: KeyboardShortcut(action: .snapshot, keyCode: UInt32(kVK_ANSI_S), carbonModifiers: UInt32(cmdKey)),
             .stopDrawing: KeyboardShortcut(action: .stopDrawing, keyCode: UInt32(kVK_Escape), carbonModifiers: 0),
             // Option+number avoids stealing plain 1–7 while typing in other apps.
