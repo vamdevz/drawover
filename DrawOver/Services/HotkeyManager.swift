@@ -41,8 +41,9 @@ final class HotkeyManager {
         Publishers.CombineLatest3(
             appState.$isAppEnabled,
             appState.$isDrawingModeActive,
-            appState.$isTextInputActive
+            appState.$toolsOnlyWhileDrawing
         )
+        .receive(on: RunLoop.main)
         .sink { [weak self] _, _, _ in
             self?.reloadShortcuts()
         }
@@ -54,12 +55,27 @@ final class HotkeyManager {
 
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         InstallEventHandler(
-            GetApplicationEventTarget(),
+            GetEventDispatcherTarget(),
             { _, event, userData -> OSStatus in
-                guard let userData else { return OSStatus(eventNotHandledErr) }
+                guard let userData, let event else { return OSStatus(eventNotHandledErr) }
                 let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
+
+                // Must read EventRef synchronously — it is invalid after this handler returns.
+                var hotkeyID = EventHotKeyID()
+                let status = GetEventParameter(
+                    event,
+                    EventParamName(kEventParamDirectObject),
+                    EventParamType(typeEventHotKeyID),
+                    nil,
+                    MemoryLayout<EventHotKeyID>.size,
+                    nil,
+                    &hotkeyID
+                )
+                guard status == noErr else { return OSStatus(eventNotHandledErr) }
+
+                let actionID = hotkeyID.id
                 Task { @MainActor in
-                    manager.handleHotkey(event: event)
+                    manager.handleHotkey(actionID: actionID)
                 }
                 return noErr
             },
@@ -75,20 +91,18 @@ final class HotkeyManager {
         unregisterAll()
         guard let appState, appState.isAppEnabled else { return }
 
-        let globalActions: [ShortcutAction] = [.toggleDrawing, .clearAll, .undo, .redo, .snapshot]
-        let toolActions: [ShortcutAction] = [
-            .toolPen, .toolHighlighter, .toolArrow, .toolRectangle,
-            .toolEllipse, .toolText, .toolEraser
-        ]
-
-        var actions = globalActions
+        var actions: [ShortcutAction] = [.toggleDrawing, .clearAll, .undo, .redo, .snapshot]
 
         if appState.isDrawingModeActive {
-            // Esc must work even while a text field is open.
             actions.append(.stopDrawing)
-            if !appState.isTextInputActive {
-                actions.append(contentsOf: toolActions)
-            }
+        }
+
+        let toolsAllowed = !appState.toolsOnlyWhileDrawing || appState.isDrawingModeActive
+        if toolsAllowed {
+            actions.append(contentsOf: [
+                .toolPen, .toolRectangle, .toolArrow,
+                .toolHighlighter, .toolEllipse, .toolText, .toolEraser
+            ])
         }
 
         for action in actions {
@@ -103,7 +117,7 @@ final class HotkeyManager {
             shortcut.keyCode,
             shortcut.carbonModifiers,
             hotKeyID,
-            GetApplicationEventTarget(),
+            GetEventDispatcherTarget(),
             0,
             &ref
         )
@@ -116,25 +130,9 @@ final class HotkeyManager {
     }
 
     @MainActor
-    private func handleHotkey(event: EventRef?) {
-        guard let event, let appState, appState.isAppEnabled else { return }
-
-        var hotkeyID = EventHotKeyID()
-        GetEventParameter(
-            event,
-            EventParamName(kEventParamDirectObject),
-            EventParamType(typeEventHotKeyID),
-            nil,
-            MemoryLayout<EventHotKeyID>.size,
-            nil,
-            &hotkeyID
-        )
-
-        guard let action = ShortcutAction.allCases.first(where: { $0.hotkeyID == hotkeyID.id }) else { return }
-
-        if appState.isTextInputActive, action != .stopDrawing, action != .undo, action != .redo {
-            return
-        }
+    private func handleHotkey(actionID: UInt32) {
+        guard let appState, appState.isAppEnabled else { return }
+        guard let action = ShortcutAction.allCases.first(where: { $0.hotkeyID == actionID }) else { return }
 
         switch action {
         case .toggleDrawing:
@@ -151,7 +149,7 @@ final class HotkeyManager {
             NotificationCenter.default.post(name: .takeSnapshot, object: nil)
         case .toolPen, .toolHighlighter, .toolArrow, .toolRectangle, .toolEllipse, .toolText, .toolEraser:
             if let tool = action.linkedTool {
-                appState.selectTool(tool)
+                appState.selectToolFromShortcut(tool)
             }
         }
     }

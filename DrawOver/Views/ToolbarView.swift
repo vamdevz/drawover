@@ -74,23 +74,40 @@ final class ToolbarPanelController: NSWindowController {
     }
 
     func show() {
-        guard appState.showToolbar, appState.isAppEnabled else { return }
-        bringToFront()
+        guard shouldShowToolbar else { return }
+        forceShow()
     }
 
-    func hide() {
-        window?.orderOut(nil)
-    }
-
-    func bringToFront() {
-        guard let window else { return }
+    /// Shows the toolbar even if it was previously ordered out (e.g. after Invisible Mode).
+    func forceShow() {
+        guard appState.isAppEnabled, !appState.isInvisibleMode, let window else { return }
+        if !appState.showToolbar {
+            appState.showToolbar = true
+        }
+        positionInitiallyIfNeeded()
+        window.alphaValue = 1
         window.orderFrontRegardless()
         window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.assistiveTechHighWindow)) + 2)
         ToolbarFrameTracker.update(from: window)
     }
 
+    func hide() {
+        window?.orderOut(nil)
+        ToolbarFrameTracker.clear()
+    }
+
+    var shouldShowToolbar: Bool {
+        appState.showToolbar && appState.isAppEnabled && !appState.isInvisibleMode
+    }
+
+    func bringToFront() {
+        guard shouldShowToolbar else { return }
+        forceShow()
+    }
+
     private func observeAppState() {
         appState.$toolbarDock
+            .receive(on: RunLoop.main)
             .sink { [weak self] dock in
                 switch dock {
                 case .left: self?.dock(to: .left)
@@ -100,26 +117,43 @@ final class ToolbarPanelController: NSWindowController {
             }
             .store(in: &cancellables)
 
-        appState.$showToolbar
-            .combineLatest(appState.$isAppEnabled)
-            .sink { [weak self] visible, enabled in
-                if visible && enabled {
-                    self?.bringToFront()
-                } else {
-                    self?.hide()
-                }
-            }
-            .store(in: &cancellables)
+        Publishers.CombineLatest3(
+            appState.$showToolbar,
+            appState.$isAppEnabled,
+            appState.$isInvisibleMode
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] _, _, _ in
+            self?.refreshVisibility()
+        }
+        .store(in: &cancellables)
 
         appState.$isDrawingModeActive
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.bringToFront()
             }
             .store(in: &cancellables)
     }
 
+    private func refreshVisibility() {
+        if shouldShowToolbar {
+            forceShow()
+        } else {
+            hide()
+        }
+    }
+
     private func positionInitially() {
+        positionInitiallyIfNeeded(force: true)
+    }
+
+    private func positionInitiallyIfNeeded(force: Bool = false) {
         guard let screen = NSScreen.main, let window else { return }
+        // Reposition if forced, or if the window has never been placed on a real screen yet.
+        let needsPlacement = force || window.frame.origin == .zero || !screen.visibleFrame.intersects(window.frame)
+        guard needsPlacement else { return }
+
         let frame = window.frame
         let x = screen.visibleFrame.maxX - frame.width - 16
         let y = screen.visibleFrame.midY - frame.height / 2
@@ -228,7 +262,11 @@ struct ToolbarView: View {
         .buttonStyle(ToolbarButtonStyle())
         .disabled(!appState.isAppEnabled)
         .opacity(appState.isAppEnabled ? 1 : 0.4)
-        .help(appState.isDrawingModeActive ? "Click to stop · Esc clear · Esc×2 exit" : "Click to start drawing")
+        .help(
+            appState.isDrawingModeActive
+                ? "Drawing on — drag to draw, click/scroll apps underneath · Esc clear · Esc×2 exit"
+                : "Click to start drawing"
+        )
     }
 
     private var toolButtons: some View {

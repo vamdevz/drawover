@@ -9,9 +9,9 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Codable {
     case snapshot
     case stopDrawing
     case toolPen
-    case toolHighlighter
-    case toolArrow
     case toolRectangle
+    case toolArrow
+    case toolHighlighter
     case toolEllipse
     case toolText
     case toolEraser
@@ -27,9 +27,9 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Codable {
         case .snapshot: return "Snapshot"
         case .stopDrawing: return "Clear (Esc) / exit (Esc×2)"
         case .toolPen: return "Pen"
-        case .toolHighlighter: return "Highlighter"
-        case .toolArrow: return "Arrow"
         case .toolRectangle: return "Rectangle"
+        case .toolArrow: return "Arrow"
+        case .toolHighlighter: return "Highlighter"
         case .toolEllipse: return "Ellipse"
         case .toolText: return "Text"
         case .toolEraser: return "Eraser"
@@ -162,21 +162,20 @@ final class ShortcutStore: ObservableObject {
 
     static var defaults: [ShortcutAction: KeyboardShortcut] {
         [
-            // Option+D avoids stealing "d" while typing in other apps.
-            .toggleDrawing: KeyboardShortcut(action: .toggleDrawing, keyCode: UInt32(kVK_ANSI_D), carbonModifiers: UInt32(optionKey)),
+            // Control+Shift+D avoids stealing plain "d" while typing in other apps.
+            .toggleDrawing: KeyboardShortcut(action: .toggleDrawing, keyCode: UInt32(kVK_ANSI_D), carbonModifiers: UInt32(controlKey | shiftKey)),
             .clearAll: KeyboardShortcut(action: .clearAll, keyCode: UInt32(kVK_ANSI_C), carbonModifiers: UInt32(optionKey)),
             .undo: KeyboardShortcut(action: .undo, keyCode: UInt32(kVK_ANSI_Z), carbonModifiers: UInt32(cmdKey)),
             .redo: KeyboardShortcut(action: .redo, keyCode: UInt32(kVK_ANSI_Z), carbonModifiers: UInt32(cmdKey | shiftKey)),
             .snapshot: KeyboardShortcut(action: .snapshot, keyCode: UInt32(kVK_ANSI_S), carbonModifiers: UInt32(cmdKey)),
             .stopDrawing: KeyboardShortcut(action: .stopDrawing, keyCode: UInt32(kVK_Escape), carbonModifiers: 0),
-            // Option+number avoids stealing plain 1–7 while typing in other apps.
-            .toolPen: KeyboardShortcut(action: .toolPen, keyCode: UInt32(kVK_ANSI_1), carbonModifiers: UInt32(optionKey)),
-            .toolHighlighter: KeyboardShortcut(action: .toolHighlighter, keyCode: UInt32(kVK_ANSI_2), carbonModifiers: UInt32(optionKey)),
-            .toolArrow: KeyboardShortcut(action: .toolArrow, keyCode: UInt32(kVK_ANSI_3), carbonModifiers: UInt32(optionKey)),
-            .toolRectangle: KeyboardShortcut(action: .toolRectangle, keyCode: UInt32(kVK_ANSI_4), carbonModifiers: UInt32(optionKey)),
-            .toolEllipse: KeyboardShortcut(action: .toolEllipse, keyCode: UInt32(kVK_ANSI_5), carbonModifiers: UInt32(optionKey)),
-            .toolText: KeyboardShortcut(action: .toolText, keyCode: UInt32(kVK_ANSI_6), carbonModifiers: UInt32(optionKey)),
-            .toolEraser: KeyboardShortcut(action: .toolEraser, keyCode: UInt32(kVK_ANSI_7), carbonModifiers: UInt32(optionKey)),
+            .toolPen: KeyboardShortcut(action: .toolPen, keyCode: UInt32(kVK_ANSI_1), carbonModifiers: UInt32(controlKey)),
+            .toolRectangle: KeyboardShortcut(action: .toolRectangle, keyCode: UInt32(kVK_ANSI_2), carbonModifiers: UInt32(controlKey)),
+            .toolArrow: KeyboardShortcut(action: .toolArrow, keyCode: UInt32(kVK_ANSI_3), carbonModifiers: UInt32(controlKey)),
+            .toolHighlighter: KeyboardShortcut(action: .toolHighlighter, keyCode: UInt32(kVK_ANSI_4), carbonModifiers: UInt32(controlKey)),
+            .toolEllipse: KeyboardShortcut(action: .toolEllipse, keyCode: UInt32(kVK_ANSI_5), carbonModifiers: UInt32(controlKey)),
+            .toolText: KeyboardShortcut(action: .toolText, keyCode: UInt32(kVK_ANSI_6), carbonModifiers: UInt32(controlKey)),
+            .toolEraser: KeyboardShortcut(action: .toolEraser, keyCode: UInt32(kVK_ANSI_7), carbonModifiers: UInt32(controlKey)),
         ]
     }
 
@@ -222,6 +221,135 @@ final class ShortcutStore: ObservableObject {
             shortcuts = Self.defaults
         }
         migrateBareNumberToolShortcuts()
+        migrateLegacyToggleShortcut()
+        migrateOptionNumberToolShortcutsToControl()
+        migrateRectangleToSecondToolSlot()
+        migrateArrowToThirdToolSlot()
+        migrateRegionCaptureRemoved()
+    }
+
+    /// Upgrade the previous Option+D toggle default to Control+Shift+D.
+    private func migrateLegacyToggleShortcut() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "DrawOver.migratedToggleToCtrlShiftD") else { return }
+        defaults.set(true, forKey: "DrawOver.migratedToggleToCtrlShiftD")
+
+        let current = shortcuts[.toggleDrawing] ?? Self.defaults[.toggleDrawing]!
+        let isLegacyOptionD =
+            current.keyCode == UInt32(kVK_ANSI_D) &&
+            current.carbonModifiers == UInt32(optionKey)
+        guard isLegacyOptionD else { return }
+
+        shortcuts[.toggleDrawing] = Self.defaults[.toggleDrawing]!
+        save()
+        NotificationCenter.default.post(name: .shortcutsDidChange, object: nil)
+    }
+
+    /// Upgrade old Option+1–7 (and bare 1–7) tool shortcuts to Control+1–7.
+    private func migrateOptionNumberToolShortcutsToControl() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "DrawOver.migratedToolsToCtrlNumber") else { return }
+        defaults.set(true, forKey: "DrawOver.migratedToolsToCtrlNumber")
+
+        let toolActions: [ShortcutAction] = [
+            .toolPen, .toolHighlighter, .toolArrow, .toolRectangle,
+            .toolEllipse, .toolText, .toolEraser
+        ]
+        var changed = false
+        for action in toolActions {
+            guard let shortcut = shortcuts[action] ?? Self.defaults[action] else { continue }
+            let isNumberKey = (Int(shortcut.keyCode) >= kVK_ANSI_1 && Int(shortcut.keyCode) <= kVK_ANSI_9)
+            let isOptionOrBare = shortcut.carbonModifiers == UInt32(optionKey) || shortcut.carbonModifiers == 0
+            guard isNumberKey, isOptionOrBare else { continue }
+            shortcuts[action] = KeyboardShortcut(
+                action: action,
+                keyCode: shortcut.keyCode,
+                carbonModifiers: UInt32(controlKey)
+            )
+            changed = true
+        }
+        if changed {
+            save()
+            NotificationCenter.default.post(name: .shortcutsDidChange, object: nil)
+        }
+    }
+
+    /// Rectangle moves to ⌃2; highlighter/arrow shift to ⌃3/⌃4.
+    private func migrateRectangleToSecondToolSlot() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "DrawOver.migratedRectangleToCtrl2") else { return }
+        defaults.set(true, forKey: "DrawOver.migratedRectangleToCtrl2")
+
+        let remaps: [(ShortcutAction, UInt32)] = [
+            (.toolPen, UInt32(kVK_ANSI_1)),
+            (.toolRectangle, UInt32(kVK_ANSI_2)),
+            (.toolHighlighter, UInt32(kVK_ANSI_3)),
+            (.toolArrow, UInt32(kVK_ANSI_4)),
+            (.toolEllipse, UInt32(kVK_ANSI_5)),
+            (.toolText, UInt32(kVK_ANSI_6)),
+            (.toolEraser, UInt32(kVK_ANSI_7)),
+        ]
+        for (action, keyCode) in remaps {
+            shortcuts[action] = KeyboardShortcut(
+                action: action,
+                keyCode: keyCode,
+                carbonModifiers: UInt32(controlKey)
+            )
+        }
+        save()
+        NotificationCenter.default.post(name: .shortcutsDidChange, object: nil)
+    }
+
+    /// Arrow moves to ⌃3; remaining tools shift after it.
+    private func migrateArrowToThirdToolSlot() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "DrawOver.migratedArrowToCtrl3") else { return }
+        defaults.set(true, forKey: "DrawOver.migratedArrowToCtrl3")
+
+        let remaps: [(ShortcutAction, UInt32)] = [
+            (.toolPen, UInt32(kVK_ANSI_1)),
+            (.toolRectangle, UInt32(kVK_ANSI_2)),
+            (.toolArrow, UInt32(kVK_ANSI_3)),
+            (.toolHighlighter, UInt32(kVK_ANSI_4)),
+            (.toolEllipse, UInt32(kVK_ANSI_5)),
+            (.toolText, UInt32(kVK_ANSI_6)),
+            (.toolEraser, UInt32(kVK_ANSI_7)),
+        ]
+        for (action, keyCode) in remaps {
+            shortcuts[action] = KeyboardShortcut(
+                action: action,
+                keyCode: keyCode,
+                carbonModifiers: UInt32(controlKey)
+            )
+        }
+        save()
+        NotificationCenter.default.post(name: .shortcutsDidChange, object: nil)
+    }
+
+    /// Restore ⌃4–⌃7 after Region shot was removed.
+    private func migrateRegionCaptureRemoved() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "DrawOver.migratedRegionCaptureRemoved") else { return }
+        defaults.set(true, forKey: "DrawOver.migratedRegionCaptureRemoved")
+
+        let remaps: [(ShortcutAction, UInt32)] = [
+            (.toolPen, UInt32(kVK_ANSI_1)),
+            (.toolRectangle, UInt32(kVK_ANSI_2)),
+            (.toolArrow, UInt32(kVK_ANSI_3)),
+            (.toolHighlighter, UInt32(kVK_ANSI_4)),
+            (.toolEllipse, UInt32(kVK_ANSI_5)),
+            (.toolText, UInt32(kVK_ANSI_6)),
+            (.toolEraser, UInt32(kVK_ANSI_7)),
+        ]
+        for (action, keyCode) in remaps {
+            shortcuts[action] = KeyboardShortcut(
+                action: action,
+                keyCode: keyCode,
+                carbonModifiers: UInt32(controlKey)
+            )
+        }
+        save()
+        NotificationCenter.default.post(name: .shortcutsDidChange, object: nil)
     }
 
     /// Upgrade old plain 1–7 shortcuts that hijacked the number row in every app.
@@ -238,7 +366,7 @@ final class ShortcutStore: ObservableObject {
                 shortcuts[action] = KeyboardShortcut(
                     action: action,
                     keyCode: shortcut.keyCode,
-                    carbonModifiers: UInt32(optionKey)
+                    carbonModifiers: UInt32(controlKey)
                 )
                 changed = true
             }

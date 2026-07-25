@@ -8,12 +8,14 @@ final class AppState: ObservableObject {
     @Published var isAppEnabled = true
     @Published var isDrawingModeActive = false
     @Published var isTextInputActive = false
-    @Published var selectedTool: DrawingTool = .pen
+    @Published var selectedTool: DrawingTool = .rectangle
     @Published var strokeColor: Color = .red
     @Published var lineWidth: CGFloat = 3
     @Published var annotations: [Annotation] = []
     @Published var toolbarDock: ToolbarDock = .floating
     @Published var showToolbar = true
+    /// When true, the floating toolbar is hidden; control DrawOver via menu bar + keyboard shortcuts.
+    @Published var isInvisibleMode = true
     @Published var toolbarOpacity: Double = 0.92
     @Published var toolbarUseTransparentBackground = true
     @Published var clearOnToggleOff = true
@@ -31,7 +33,9 @@ final class AppState: ObservableObject {
     private var redoStack: [[Annotation]] = []
     private var cancellables = Set<AnyCancellable>()
     private var lastEscapeTime: Date?
+    private var lastToolShortcutAt: Date?
     private let escapeDoubleTapInterval: TimeInterval = 0.45
+    private let toolShortcutDebounce: TimeInterval = 0.25
 
     init() {
         loadPreferences()
@@ -207,8 +211,63 @@ final class AppState: ObservableObject {
         NotificationCenter.default.post(name: .bringToolbarToFront, object: nil)
     }
 
+    /// Keyboard shortcut entry point — debounced so Carbon + NSEvent monitors don't
+    /// double-fire and accidentally toggle drawing off.
+    func selectToolFromShortcut(_ tool: DrawingTool) {
+        guard isAppEnabled else { return }
+
+        let now = Date()
+        if let last = lastToolShortcutAt, now.timeIntervalSince(last) < toolShortcutDebounce {
+            return
+        }
+        lastToolShortcutAt = now
+
+        if isTextInputActive {
+            NotificationCenter.default.post(name: .commitAllTextEditors, object: nil)
+            isTextInputActive = false
+        }
+
+        // Switching tools via shortcut should never stop drawing when choosing a new tool.
+        if isDrawingModeActive && selectedTool == tool {
+            return
+        }
+
+        NotificationCenter.default.post(name: .commitAllTextEditors, object: nil)
+        NotificationCenter.default.post(name: .annotationsCleared, object: nil)
+        isTextInputActive = false
+
+        if clearOnToolSwitch && isDrawingModeActive && selectedTool != tool {
+            annotations.removeAll()
+        }
+
+        selectedTool = tool
+        if tool.supportsLineWidth {
+            lineWidth = tool.defaultLineWidth
+        }
+
+        if !isDrawingModeActive {
+            isDrawingModeActive = true
+        }
+
+        NotificationCenter.default.post(name: .cancelCanvasInteraction, object: nil)
+        NotificationCenter.default.post(name: .bringToolbarToFront, object: nil)
+    }
+
     func setTool(_ tool: DrawingTool) {
         selectTool(tool)
+    }
+
+    /// Tap Control alone to cycle Pen → Rectangle → Arrow while drawing.
+    func togglePenAndRectangle() {
+        guard isAppEnabled, isDrawingModeActive else { return }
+        let cycle: [DrawingTool] = [.pen, .rectangle, .arrow]
+        let next: DrawingTool
+        if let idx = cycle.firstIndex(of: selectedTool) {
+            next = cycle[(idx + 1) % cycle.count]
+        } else {
+            next = .pen
+        }
+        selectToolFromShortcut(next)
     }
 
     func markDisplayActive(_ displayID: UInt32) {
@@ -242,6 +301,12 @@ final class AppState: ObservableObject {
             isAppEnabled = defaults.bool(forKey: "isAppEnabled")
         }
         showToolbar = defaults.object(forKey: "showToolbar") as? Bool ?? true
+        if defaults.object(forKey: "isInvisibleMode") != nil {
+            isInvisibleMode = defaults.bool(forKey: "isInvisibleMode")
+        } else {
+            isInvisibleMode = true
+            defaults.set(true, forKey: "isInvisibleMode")
+        }
         toolbarOpacity = defaults.object(forKey: "toolbarOpacity") as? Double ?? 0.92
         toolbarUseTransparentBackground = defaults.object(forKey: "toolbarUseTransparentBackground") as? Bool ?? true
         clearOnToggleOff = defaults.object(forKey: "clearOnToggleOff") as? Bool ?? true
@@ -262,6 +327,16 @@ final class AppState: ObservableObject {
     private func observePreferences() {
         $isAppEnabled.dropFirst().sink { UserDefaults.standard.set($0, forKey: "isAppEnabled") }.store(in: &cancellables)
         $showToolbar.dropFirst().sink { UserDefaults.standard.set($0, forKey: "showToolbar") }.store(in: &cancellables)
+        $isInvisibleMode
+            .dropFirst()
+            .sink { [weak self] enabled in
+                UserDefaults.standard.set(enabled, forKey: "isInvisibleMode")
+                // Turning Invisible Mode off should restore the floating toolbar.
+                if !enabled {
+                    self?.showToolbar = true
+                }
+            }
+            .store(in: &cancellables)
         $toolbarOpacity.dropFirst().sink { UserDefaults.standard.set($0, forKey: "toolbarOpacity") }.store(in: &cancellables)
         $toolbarUseTransparentBackground.dropFirst().sink { UserDefaults.standard.set($0, forKey: "toolbarUseTransparentBackground") }.store(in: &cancellables)
         $clearOnToggleOff.dropFirst().sink { UserDefaults.standard.set($0, forKey: "clearOnToggleOff") }.store(in: &cancellables)
@@ -280,6 +355,8 @@ extension Notification.Name {
     static let appEnabledChanged = Notification.Name("DrawOver.appEnabledChanged")
     static let bringToolbarToFront = Notification.Name("DrawOver.bringToolbarToFront")
     static let cancelCanvasInteraction = Notification.Name("DrawOver.cancelCanvasInteraction")
+    /// Posted when the click-through pointer router consumes a mouse gesture (so Control-tap doesn't fire).
+    static let drawingPointerActivity = Notification.Name("DrawOver.drawingPointerActivity")
 }
 
 extension NSScreen {

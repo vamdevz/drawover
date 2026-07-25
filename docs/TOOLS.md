@@ -8,23 +8,25 @@ For setup, permissions, and general workflows, see the [User Guide](USER_GUIDE.m
 
 ## Before you draw
 
-1. Click the **menu bar pencil** or press **⌥D** to enable DrawOver.
+1. Click the **menu bar pencil** or press **⌃⇧D** to enable DrawOver.
 2. Click the **green dot** on the toolbar so it turns **green** (drawing mode on).
-3. Pick a tool from the toolbar or with **⌥1** through **⌥7**.
+3. Pick a tool from the toolbar or with **⌃1** through **⌃7**.
 4. Choose a **color** and adjust **stroke width** (`−` / `+`) when the tool supports it.
 
 **Tip:** Annotations stay on screen when you switch tools (pen → rectangle → arrow, etc.). You can layer shapes, arrows, and freehand marks on top of each other.
+
+**Menu bar pencil:** left-click toggles **Invisible Mode** (hide/show the floating toolbar). Right-click opens the full menu.
 
 ---
 
 ## Tool 1 — Pen
 
-**Shortcut:** ⌥1  
+**Shortcut:** ⌃1 · or tap **⌃** alone to cycle Pen → Rectangle → Arrow  
 **Best for:** Freehand circles, underlines, handwritten notes, drawing on top of boxes and arrows.
 
 ### How to use
 
-1. Select **Pen** on the toolbar (or press **⌥1**).
+1. Select **Pen** on the toolbar (or press **⌃1**).
 2. Adjust line thickness with **Stroke − / +** if needed.
 3. **Click and drag** anywhere on the screen to draw.
 4. Release the mouse to finish the stroke.
@@ -33,66 +35,19 @@ For setup, permissions, and general workflows, see the [User Guide](USER_GUIDE.m
 
 - Draw **on top of** rectangles, ellipses, and arrows — existing shapes stay visible.
 - Use **⌘Z** to undo a stroke, **⌘⇧Z** to redo.
+- Tap **Control** alone to cycle **Pen → Rectangle → Arrow**.
 - To **move** a shape instead of drawing over it, switch to the rectangle, ellipse, or arrow tool and drag the shape.
 
 ---
 
-## Tool 2 — Highlighter
+## Tool 2 — Rectangle
 
-**Shortcut:** ⌥2  
-**Best for:** Emphasizing text, paragraphs, or UI areas without fully hiding what's underneath.
-
-### How to use
-
-1. Select **Highlighter** (or press **⌥2**).
-2. **Click and drag** over the area you want to highlight.
-3. Release to finish.
-
-### Tips
-
-- Highlighter strokes are **wider** and **semi-transparent** by default.
-- Like the pen, you can highlight **over existing shapes** without moving them.
-- Adjust **Stroke − / +** for a thicker or thinner highlight band.
-
----
-
-## Tool 3 — Arrow
-
-**Shortcut:** ⌥3  
-**Best for:** Pointing at a button, icon, or detail on screen.
-
-### How to use
-
-1. Select **Arrow** (or press **⌥3**).
-2. **Click and drag** from the tail to the arrow tip.
-3. Release to place the arrow.
-
-### Add a caption (label)
-
-1. Keep **Arrow** selected.
-2. **Double-click** the arrow line.
-3. Type your label and press **Return** (or click outside to commit).
-
-### Move an arrow or its caption
-
-1. With **Arrow** selected, **click and drag** the arrow line to reposition it.
-2. **Click and drag** the caption text to move the label.
-
-### Tips
-
-- Use **⌥-click** while on rectangle/ellipse tools to delete an arrow (see Rectangle tool).
-- **⌘Z** / **⌘⇧Z** undo and redo arrow changes.
-
----
-
-## Tool 4 — Rectangle
-
-**Shortcut:** ⌥4  
+**Shortcut:** ⌃2 · or tap **⌃** alone to cycle tools  
 **Best for:** Framing UI elements, bugs, regions, or steps in a flow.
 
 ### How to use (basic box)
 
-1. Select **Rectangle** (or press **⌥4**).
+1. Select **Rectangle** on the toolbar (or press **⌃2**).
 2. **Click and drag** diagonally to size the box.
 3. Release to finish.
 
@@ -104,7 +59,7 @@ For setup, permissions, and general workflows, see the [User Guide](USER_GUIDE.m
 
 ### Draw an arrow while on the rectangle tool
 
-Hold **⌃ (Control)** and drag — this draws an **arrow** instead of a box.
+Hold **⌃ (Control)** and drag — this draws an **arrow** instead of a box. (A quick Control tap without dragging cycles Pen → Rectangle → Arrow.)
 
 | Gesture | Result |
 |---------|--------|
@@ -131,19 +86,68 @@ Hold **⌃ (Control)** and drag — this draws an **arrow** instead of a box.
 
 ### Tips
 
-- After drawing a box, switch to **Pen** (**⌥1**) to scribble notes inside the frame.
+- After drawing a box, tap **Control** or press **⌃1** to scribble with the pen inside the frame.
 - Toggle **Auto-caption every new box** (speech-bubble icon on the toolbar when rectangle/ellipse is active) in Settings or the toolbar if you want captions to open automatically after each new shape.
+
+---
+
+## Tool 3 — Arrow
+
+**Shortcut:** ⌃3 · or tap **⌃** alone to cycle tools  
+**Best for:** Pointing at a button, icon, or detail on screen.
+
+### How to use
+
+1. Select **Arrow** on the toolbar (or press **⌃3**).
+2. **Click and drag** from the tail to the arrow tip.
+3. Release to place the arrow.
+
+### Add a caption (label)
+
+1. Keep **Arrow** selected.
+2. **Double-click** the arrow line.
+3. Type your label and press **Return** (or click outside to commit).
+
+### Move an arrow or its caption
+
+1. With **Arrow** selected, **click and drag** the arrow line to reposition it.
+2. **Click and drag** the caption text to move the label.
+
+### Tips
+
+- Use **⌥-click** while on rectangle/ellipse tools to delete an arrow (see Rectangle tool).
+- **⌘Z** / **⌘⇧Z** undo and redo arrow changes.
+- Tap **Control** alone to cycle back toward Pen / Rectangle.
+
+---
+
+## Tool 4 — Highlighter
+
+**Shortcut:** ⌃4  
+**Best for:** Emphasizing text, paragraphs, or UI areas without fully hiding what's underneath.
+
+### How to use
+
+1. Select **Highlighter** (or press **⌃4**).
+2. **Click and drag** over the area you want to highlight.
+3. Release to finish.
+
+### Tips
+
+- Highlighter strokes are **wider** and **semi-transparent** by default.
+- Like the pen, you can highlight **over existing shapes** without moving them.
+- Adjust **Stroke − / +** for a thicker or thinner highlight band.
 
 ---
 
 ## Tool 5 — Ellipse
 
-**Shortcut:** ⌥5  
+**Shortcut:** ⌃5  
 **Best for:** Circling avatars, round buttons, or soft emphasis areas.
 
 ### How to use
 
-1. Select **Ellipse** (or press **⌥5**).
+1. Select **Ellipse** (or press **⌃5**).
 2. **Click and drag** to size the oval.
 3. Release to finish.
 
@@ -161,12 +165,12 @@ Ellipse supports the **same gestures as Rectangle**:
 
 ## Tool 6 — Text
 
-**Shortcut:** ⌥6  
+**Shortcut:** ⌃6  
 **Best for:** Standalone labels anywhere on screen (not tied to a shape).
 
 ### How to use
 
-1. Select **Text** (or press **⌥6**).
+1. Select **Text** (or press **⌃6**).
 2. **Click** where you want the label.
 3. Type in the field that appears.
 4. Press **Return** or click outside to commit.
@@ -184,12 +188,12 @@ Ellipse supports the **same gestures as Rectangle**:
 
 ## Tool 7 — Eraser
 
-**Shortcut:** ⌥7  
+**Shortcut:** ⌃7  
 **Best for:** Removing pen strokes, highlighter marks, and other annotations you drag over.
 
 ### How to use
 
-1. Select **Eraser** (or press **⌥7**).
+1. Select **Eraser** (or press **⌃7**).
 2. **Click and drag** over marks you want to remove.
 3. Strokes and shapes under the eraser path are deleted as you drag.
 
@@ -219,14 +223,15 @@ Ellipse supports the **same gestures as Rectangle**:
 
 | Shortcut | Action |
 |----------|--------|
-| **⌥D** | Toggle drawing on/off |
+| **⌃⇧D** | Toggle drawing on/off |
 | **Esc** | Clear all annotations (stay in drawing mode) |
 | **Esc Esc** (quickly) | Turn drawing off (green dot off) |
 | **⌥C** | Clear all |
 | **⌘Z** | Undo |
 | **⌘⇧Z** | Redo |
 | **⌘S** | Snapshot to clipboard |
-| **⌥1** – **⌥7** | Pen → Eraser |
+| **⌃1** – **⌃7** | Pen, Rectangle, Arrow, … |
+| **⌃** (tap alone) | Cycle Pen → Rectangle → Arrow |
 
 Customize in **menu bar → Settings → Shortcuts**.
 
@@ -236,20 +241,20 @@ Customize in **menu bar → Settings → Shortcuts**.
 
 ### Frame a bug and annotate it
 
-1. **⌥4** → drag a **rectangle** around the issue.  
+1. **⌃4** → drag a **rectangle** around the issue.  
 2. **Double-click** the box → type a caption.  
-3. **⌥1** → **pen** → circle the exact broken pixel or button.  
+3. **⌃1** → **pen** → circle the exact broken pixel or button.  
 4. **⌘S** → snapshot → paste into Slack or Jira.
 
 ### Point from a label to a detail
 
-1. **⌥4** → draw a box around a UI element.  
+1. **⌃4** → draw a box around a UI element.  
 2. **⌃ + drag** from the box edge to the detail (callout arrow).  
 3. **Double-click** the box to add a caption.
 
 ### Present live, then clean up
 
-1. **⌥D** → green dot on → draw with pen/highlighter/arrows.  
+1. **⌃⇧D** → green dot on → draw with pen/highlighter/arrows.  
 2. **Esc** once → clear annotations, stay ready to draw again.  
 3. **Esc Esc** → exit drawing mode entirely.
 

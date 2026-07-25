@@ -2,26 +2,26 @@ import SwiftUI
 
 enum DrawingTool: String, CaseIterable, Identifiable {
     case pen
-    case highlighter
-    case arrow
     case rectangle
+    case arrow
+    case highlighter
     case ellipse
     case text
     case eraser
 
     var id: String { rawValue }
 
-    /// Tools shown in the toolbar (spotlight & measure removed).
+    /// Tools shown in the toolbar.
     static let toolbarTools: [DrawingTool] = [
-        .pen, .highlighter, .arrow, .rectangle, .ellipse, .text, .eraser
+        .pen, .rectangle, .arrow, .highlighter, .ellipse, .text, .eraser
     ]
 
     var label: String {
         switch self {
         case .pen: return "Pen"
-        case .highlighter: return "Highlighter"
-        case .arrow: return "Arrow"
         case .rectangle: return "Rectangle"
+        case .arrow: return "Arrow"
+        case .highlighter: return "Highlighter"
         case .ellipse: return "Ellipse"
         case .text: return "Text"
         case .eraser: return "Eraser"
@@ -31,9 +31,9 @@ enum DrawingTool: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .pen: return "pencil.tip"
-        case .highlighter: return "highlighter"
-        case .arrow: return "arrow.up.right"
         case .rectangle: return "rectangle"
+        case .arrow: return "arrow.up.right"
+        case .highlighter: return "highlighter"
         case .ellipse: return "circle"
         case .text: return "textformat"
         case .eraser: return "eraser"
@@ -43,9 +43,9 @@ enum DrawingTool: String, CaseIterable, Identifiable {
     var shortcut: String {
         switch self {
         case .pen: return "1"
-        case .highlighter: return "2"
+        case .rectangle: return "2"
         case .arrow: return "3"
-        case .rectangle: return "4"
+        case .highlighter: return "4"
         case .ellipse: return "5"
         case .text: return "6"
         case .eraser: return "7"

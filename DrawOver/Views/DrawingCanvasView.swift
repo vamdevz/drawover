@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 
 final class DrawingCanvasView: NSView {
     var appState: AppState?
@@ -37,8 +38,89 @@ final class DrawingCanvasView: NSView {
 
     override var isFlipped: Bool { true }
     override var mouseDownCanMoveWindow: Bool { false }
+    override var acceptsFirstResponder: Bool { appState?.isDrawingModeActive == true }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        if handleCanvasShortcut(event) { return }
+        super.keyDown(with: event)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if handleCanvasShortcut(event) { return true }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    /// Handle tool / Esc shortcuts directly on the canvas after drawing.
+    @discardableResult
+    private func handleCanvasShortcut(_ event: NSEvent) -> Bool {
+        guard let appState, appState.isAppEnabled, appState.isDrawingModeActive else { return false }
+
+        // While a caption field is focused, let it keep typing keys.
+        if textEditors.hasOpenEditors,
+           overlayWindow?.firstResponder is NSText || overlayWindow?.firstResponder is NSTextView || overlayWindow?.firstResponder is NSTextField {
+            // Still allow tool shortcuts (⌃1–⌃7) and Esc to escape the field.
+            if event.keyCode == UInt16(kVK_Escape) {
+                textEditors.discardAll()
+                appState.isTextInputActive = false
+                claimKeyboardForShortcuts()
+                return true
+            }
+            if isToolShortcutEvent(event, appState: appState) {
+                // fall through to tool handling below
+            } else {
+                return false
+            }
+        }
+
+        if event.keyCode == UInt16(kVK_Escape) {
+            appState.handleEscapeKey()
+            return true
+        }
+
+        return handleToolShortcutEvent(event, appState: appState)
+    }
+
+    private func isToolShortcutEvent(_ event: NSEvent, appState: AppState) -> Bool {
+        let toolActions: [ShortcutAction] = [
+            .toolPen, .toolRectangle, .toolArrow,
+            .toolHighlighter, .toolEllipse, .toolText, .toolEraser
+        ]
+        return toolActions.contains { matchesShortcut(event, appState.shortcutStore.shortcut(for: $0)) }
+    }
+
+    private func handleToolShortcutEvent(_ event: NSEvent, appState: AppState) -> Bool {
+        let toolActions: [ShortcutAction] = [
+            .toolPen, .toolRectangle, .toolArrow,
+            .toolHighlighter, .toolEllipse, .toolText, .toolEraser
+        ]
+        for action in toolActions {
+            let shortcut = appState.shortcutStore.shortcut(for: action)
+            guard matchesShortcut(event, shortcut), let tool = action.linkedTool else { continue }
+            appState.selectToolFromShortcut(tool)
+            claimKeyboardForShortcuts()
+            return true
+        }
+        return false
+    }
+
+    private func matchesShortcut(_ event: NSEvent, _ shortcut: KeyboardShortcut) -> Bool {
+        guard UInt32(event.keyCode) == shortcut.keyCode else { return false }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        var mods: UInt32 = 0
+        if flags.contains(.control) { mods |= UInt32(controlKey) }
+        if flags.contains(.option) { mods |= UInt32(optionKey) }
+        if flags.contains(.shift) { mods |= UInt32(shiftKey) }
+        if flags.contains(.command) { mods |= UInt32(cmdKey) }
+        return mods == shortcut.carbonModifiers
+    }
+
+    private func claimKeyboardForShortcuts() {
+        guard !textEditors.hasOpenEditors else { return }
+        overlayWindow?.claimKeyFocus()
+        overlayWindow?.makeFirstResponder(self)
+    }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard bounds.contains(point) else { return nil }
@@ -104,12 +186,48 @@ final class DrawingCanvasView: NSView {
         if ToolbarFrameTracker.contains(screenPoint: NSEvent.mouseLocation) { return }
 
         let point = convert(event.locationInWindow, from: nil)
+        handlePointerDown(at: point, modifierFlags: event.modifierFlags, clickCount: event.clickCount)
+    }
 
-        if event.modifierFlags.contains(.option), isShapeToolActive {
+    /// Convert global Cocoa screen coordinates into this flipped canvas's local space.
+    func pointFromGlobalScreen(_ global: CGPoint) -> CGPoint {
+        guard let window else {
+            return CGPoint(x: global.x - screenFrame.minX, y: screenFrame.maxY - global.y)
+        }
+        let inWindow = window.convertPoint(fromScreen: global)
+        return convert(inWindow, from: nil)
+    }
+
+    /// Clicks that must not pass through to apps underneath (text tool, Option-delete, hits on marks).
+    func prefersImmediatePointerCapture(
+        at point: CGPoint,
+        modifierFlags: NSEvent.ModifierFlags,
+        clickCount: Int
+    ) -> Bool {
+        if handlesCaptionInput { return true }
+        if modifierFlags.contains(.option), isShapeToolActive { return true }
+        // ⌃-drag on rectangle/ellipse draws an arrow — capture immediately so Control isn't lost.
+        if modifierFlags.contains(.control), isShapeToolActive { return true }
+        if clickCount >= 2 { return true }
+        if supportsCaptionDrag, textAnnotation(at: point, generous: true) != nil { return true }
+        if supportsObjectDrag,
+           !modifierFlags.contains(.control),
+           annotationAt(point: point) != nil {
+            return true
+        }
+        return false
+    }
+
+    func handlePointerDown(at point: CGPoint, modifierFlags: NSEvent.ModifierFlags, clickCount: Int) {
+        guard appState?.isDrawingModeActive == true else { return }
+        appState?.markDisplayActive(displayID)
+        claimKeyboardForShortcuts()
+
+        if modifierFlags.contains(.option), isShapeToolActive {
             if deleteAnnotationAtPoint(point) { return }
         }
 
-        if event.clickCount == 2 {
+        if clickCount >= 2 {
             if textEditors.hasOpenEditors { textEditors.commitAll() }
             let color = appState?.nsStrokeColor ?? .red
             if let container = shapeAnnotationRect(at: point) {
@@ -133,54 +251,17 @@ final class DrawingCanvasView: NSView {
         }
 
         if supportsObjectDrag,
-           !event.modifierFlags.contains(.control),
+           !modifierFlags.contains(.control),
            let annotation = annotationAt(point: point) {
             beginPendingObjectDrag(annotation: annotation, at: point)
             return
         }
 
-        performMouseDown(at: point)
+        performMouseDown(at: point, modifierFlags: modifierFlags)
     }
 
-    private func beginPendingTextDrag(annotation: Annotation, at point: CGPoint) {
-        guard case let .text(_, origin, _, _) = annotation.kind else { return }
-        pendingTextDragID = annotation.id
-        pendingTextDragStart = point
-        textDragOffset = CGPoint(x: point.x - origin.x, y: point.y - origin.y)
-    }
-
-    @discardableResult
-    private func handleCaptionMouseDown(at point: CGPoint) -> Bool {
-        if let field = textEditors.field(at: point) {
-            pendingFieldFocus = field
-            pendingDragStart = point
-            fieldDragOffset = CGPoint(x: point.x - field.frame.origin.x, y: point.y - field.frame.origin.y)
-            return true
-        }
-
-        if let annotation = textAnnotation(at: point) {
-            beginDraggingText(annotation: annotation, at: point)
-            return true
-        }
-
-        if textEditors.hasOpenEditors {
-            textEditors.commitAll()
-            return true
-        }
-
-        guard appState?.selectedTool == .text else { return false }
-
-        if annotationAt(point: point) != nil {
-            return false
-        }
-
-        textEditors.placeEditor(at: point, color: appState?.nsStrokeColor ?? .red)
-        return true
-    }
-
-    override func mouseDragged(with event: NSEvent) {
+    func handlePointerDragged(at point: CGPoint) {
         guard appState?.isDrawingModeActive == true else { return }
-        let point = convert(event.locationInWindow, from: nil)
 
         if let id = draggingTextID {
             appState?.updateTextAnnotation(
@@ -247,9 +328,9 @@ final class DrawingCanvasView: NSView {
         performMouseDragged(at: point)
     }
 
-    override func mouseUp(with event: NSEvent) {
+    func handlePointerUp(at point: CGPoint, modifierFlags: NSEvent.ModifierFlags = []) {
+        _ = modifierFlags
         guard appState?.isDrawingModeActive == true else { return }
-        let point = convert(event.locationInWindow, from: nil)
 
         if draggingTextID != nil {
             draggingTextID = nil
@@ -288,6 +369,52 @@ final class DrawingCanvasView: NSView {
         guard !handlesCaptionInput else { return }
         performMouseUp(at: point)
         NotificationCenter.default.post(name: .bringToolbarToFront, object: nil)
+    }
+
+    private func beginPendingTextDrag(annotation: Annotation, at point: CGPoint) {
+        guard case let .text(_, origin, _, _) = annotation.kind else { return }
+        pendingTextDragID = annotation.id
+        pendingTextDragStart = point
+        textDragOffset = CGPoint(x: point.x - origin.x, y: point.y - origin.y)
+    }
+
+    @discardableResult
+    private func handleCaptionMouseDown(at point: CGPoint) -> Bool {
+        if let field = textEditors.field(at: point) {
+            pendingFieldFocus = field
+            pendingDragStart = point
+            fieldDragOffset = CGPoint(x: point.x - field.frame.origin.x, y: point.y - field.frame.origin.y)
+            return true
+        }
+
+        if let annotation = textAnnotation(at: point) {
+            beginDraggingText(annotation: annotation, at: point)
+            return true
+        }
+
+        if textEditors.hasOpenEditors {
+            textEditors.commitAll()
+            return true
+        }
+
+        guard appState?.selectedTool == .text else { return false }
+
+        if annotationAt(point: point) != nil {
+            return false
+        }
+
+        textEditors.placeEditor(at: point, color: appState?.nsStrokeColor ?? .red)
+        return true
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        handlePointerDragged(at: point)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        handlePointerUp(at: point, modifierFlags: event.modifierFlags)
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -411,9 +538,9 @@ final class DrawingCanvasView: NSView {
         }
     }
 
-    private func performMouseDown(at point: CGPoint) {
+    private func performMouseDown(at point: CGPoint, modifierFlags: NSEvent.ModifierFlags = NSEvent.modifierFlags) {
         if isShapeToolActive {
-            if NSEvent.modifierFlags.contains(.control) {
+            if modifierFlags.contains(.control) {
                 shapeDragMode = .arrow
                 if let shape = shapeAnnotation(at: point), let rect = boundsForShape(shape) {
                     arrowAnchorRect = rect
@@ -510,6 +637,14 @@ final class DrawingCanvasView: NSView {
         shapeDragMode = .box
         arrowAnchorRect = nil
         needsDisplay = true
+
+        // Keep keyboard focus on the canvas so ⌃1–⌃7 work immediately after drawing.
+        if !textEditors.hasOpenEditors {
+            if appState?.isTextInputActive == true {
+                appState?.isTextInputActive = false
+            }
+            claimKeyboardForShortcuts()
+        }
     }
 
     private func eraseNear(_ point: CGPoint) {

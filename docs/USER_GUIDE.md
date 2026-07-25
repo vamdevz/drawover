@@ -13,7 +13,7 @@ When you finish, turn drawing off and everything disappears from the screen. Not
 | **Menu bar pencil** | Start/stop DrawOver, open settings, quit |
 | **Floating toolbar** | Pick tools, colors, stroke width, undo, snapshot |
 | **Green dot** (top of toolbar) | **On** = drawing mode active · **Off** = annotations hidden |
-| **Transparent overlay** | Full-screen layer where your marks appear |
+| **Transparent overlay** | Full-screen layer where your marks appear. Clicks/scrolls pass through; **drag** to draw. |
 
 ---
 
@@ -45,12 +45,12 @@ When you finish, turn drawing off and everything disappears from the screen. Not
 ## Getting started (5 steps)
 
 1. **Launch** `DrawOver.app` (see [README](../README.md) for download instructions).
-2. **Grant permissions** when macOS asks — **Accessibility** (hotkeys) and **Screen Recording** (snapshots).
-3. Click the **menu bar pencil** or press **⌥D** to enable drawing.
-4. Click the **green dot** on the toolbar so it turns **green** — drawing mode is now on.
-5. Pick a tool, choose a color, and draw on your screen.
+2. **Grant permissions** when macOS asks — **Accessibility** (hotkeys + click-through drawing) and **Screen Recording** (snapshots).
+3. Click the **menu bar pencil** or press **⌃⇧D** to enable drawing.
+4. Click the **green dot** on the toolbar so it turns **green** — drawing mode is on. You can still scroll and click apps underneath.
+5. **Drag** with the mouse to draw. Plain **clicks** go to the app underneath (browser tabs, etc.).
 
-**To stop:** click the green dot again (or press **Esc**). Your marks disappear immediately.
+**To stop:** click the green dot again (or press **Esc** twice). Your marks disappear immediately (unless you changed that in Settings).
 
 ---
 
@@ -60,7 +60,7 @@ When you finish, turn drawing off and everything disappears from the screen. Not
 
 Best for quick freehand circles, underlines, and rough callouts.
 
-1. Select **Pen** (or press **⌥1**).
+1. Select **Pen** (or press **⌃1**).
 2. Adjust **Stroke** thickness with `−` / `+`.
 3. **Click and drag** anywhere on screen.
 
@@ -70,7 +70,7 @@ Best for quick freehand circles, underlines, and rough callouts.
 
 Best for emphasizing text or UI without fully covering it.
 
-1. Select **Highlighter** (**⌥2**).
+1. Select **Highlighter** (**⌃4**).
 2. Drag over the area — strokes are semi-transparent and wider than the pen.
 
 ---
@@ -79,7 +79,7 @@ Best for emphasizing text or UI without fully covering it.
 
 Best for pointing at a single spot.
 
-1. Select **Arrow** (**⌥3**).
+1. Select **Arrow** (**⌃3**).
 2. **Click and drag** from start point to tip.
 3. Release to place the arrow.
 
@@ -89,7 +89,7 @@ Best for pointing at a single spot.
 
 Best for framing UI elements, regions, or bugs.
 
-1. Select **Rectangle** (**⌥4**).
+1. Select **Rectangle** (**⌃2**).
 2. **Click and drag** diagonally to draw a box.
 3. Release to finish.
 
@@ -142,7 +142,7 @@ With **Rectangle** or **Ellipse** selected, hold **⌥ (Option)** and **click** 
 
 Same gestures as rectangle (including **⌃-drag** arrows and captions), but draws an oval instead of a square.
 
-1. Select **Ellipse** (**⌥5**).
+1. Select **Ellipse** (**⌃5**).
 2. Drag to size the oval.
 
 ---
@@ -151,7 +151,7 @@ Same gestures as rectangle (including **⌃-drag** arrows and captions), but dra
 
 Best for standalone labels not tied to a shape.
 
-1. Select **Text** (**⌥6**).
+1. Select **Text** (**⌃6**).
 2. **Click** where you want text — a small field appears.
 3. Type your label and press **Return** to commit.
 4. **Click outside** the field to commit without Return.
@@ -163,7 +163,7 @@ Best for standalone labels not tied to a shape.
 
 ### Eraser
 
-1. Select **Eraser** (**⌥7**).
+1. Select **Eraser** (**⌃7**).
 2. **Click and drag** over strokes to remove them.
 
 ---
@@ -172,12 +172,13 @@ Best for standalone labels not tied to a shape.
 
 | Shortcut | Action |
 |----------|--------|
-| **⌥D** | Toggle drawing on/off (from any app) |
+| **⌃⇧D** | Toggle drawing on/off (from any app) |
 | **Esc** | Stop drawing / dismiss caption |
 | **⌥C** | Clear all annotations |
 | **⌘Z** | Undo |
 | **⌘S** | Snapshot to clipboard |
-| **⌥1** – **⌥7** | Select tools (pen → eraser) |
+| **⌃1** – **⌃7** | Select tools (Pen → Eraser) |
+| **⌃** (tap alone) | Cycle Pen → Rectangle → Arrow |
 
 Customize shortcuts in **menu bar → Settings → Shortcuts**.
 
@@ -190,7 +191,7 @@ Customize shortcuts in **menu bar → Settings → Shortcuts**.
 | Item | Action |
 |------|--------|
 | Enable / Disable DrawOver | Master on/off switch |
-| Start / Stop Drawing | Same as **⌥D** |
+| Start / Stop Drawing | Same as **⌃⇧D** |
 | Clear All | Remove every annotation |
 | Snapshot | Copy screen + annotations to clipboard |
 | Hide Toolbar | Remove floating toolbar (drawing still works via hotkeys) |
@@ -230,7 +231,7 @@ Open **Settings** from the menu bar:
 ### Presenting in Zoom / Teams
 
 1. Start your meeting and share your screen.
-2. Press **⌥D** → green dot on → annotate live.
+2. Press **⌃⇧D** → green dot on → annotate live.
 3. Press **Esc** or click green dot off when done — audience sees a clean screen again.
 
 ### Bug report with screenshot
@@ -243,7 +244,7 @@ Open **Settings** from the menu bar:
 
 ### Quick highlight in a doc
 
-1. **⌥D** → **Highlighter** → drag over the sentence.
+1. **⌃⇧D** → **Highlighter** → drag over the sentence.
 2. **Esc** when finished.
 
 ---

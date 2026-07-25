@@ -23,8 +23,14 @@ final class OverlayController: ObservableObject {
 
         appState.$isDrawingModeActive
             .sink { [weak self] active in
-                self?.setInteractionEnabled(active)
+                self?.setDrawingModeActive(active)
                 self?.refreshAnnotationVisibility()
+            }
+            .store(in: &cancellables)
+
+        appState.$isTextInputActive
+            .sink { [weak self] _ in
+                self?.refreshMousePassthrough()
             }
             .store(in: &cancellables)
 
@@ -84,6 +90,10 @@ final class OverlayController: ObservableObject {
         }
     }
 
+    func canvas(containingGlobalPoint point: CGPoint) -> DrawingCanvasView? {
+        canvasViews.first { $0.screenFrame.contains(point) }
+    }
+
     func dismissAllTextInputs() {
         canvasViews.forEach { $0.discardAllTextEditors() }
         refreshTextInputState()
@@ -92,6 +102,7 @@ final class OverlayController: ObservableObject {
     func refreshTextInputState() {
         let editing = canvasViews.contains { $0.hasOpenTextEditors }
         appState?.isTextInputActive = editing
+        refreshMousePassthrough()
     }
 
     func releaseTextEditingFocus() {
@@ -120,7 +131,7 @@ final class OverlayController: ObservableObject {
             canvasViews.append(canvas)
         }
 
-        setInteractionEnabled(appState?.isDrawingModeActive ?? false)
+        setDrawingModeActive(appState?.isDrawingModeActive ?? false)
     }
 
     func hideOverlays() {
@@ -145,6 +156,7 @@ final class OverlayController: ObservableObject {
         for window in windows {
             window.isDrawingActive = drawing
         }
+        refreshMousePassthrough()
         windows.forEach { $0.orderFrontRegardless() }
     }
 
@@ -157,10 +169,10 @@ final class OverlayController: ObservableObject {
         windows.forEach { $0.orderFrontRegardless() }
     }
 
-    private func setInteractionEnabled(_ enabled: Bool) {
+    /// Drawing mode shows annotations; mouse stays pass-through so apps underneath remain usable.
+    /// DrawingPointerRouter intercepts drag gestures. Caption editing temporarily captures the mouse.
+    private func setDrawingModeActive(_ enabled: Bool) {
         for window in windows {
-            // Capture mouse while drawing so Finder/desktop doesn't receive drag gestures.
-            window.ignoresMouseEvents = !enabled
             window.isDrawingActive = enabled
             if !enabled {
                 window.allowsTextEditing = false
@@ -172,8 +184,19 @@ final class OverlayController: ObservableObject {
                 view.syncOverlayKeyState()
             }
         }
+        refreshMousePassthrough()
         if enabled {
             NotificationCenter.default.post(name: .bringToolbarToFront, object: nil)
+        }
+    }
+
+    private func refreshMousePassthrough() {
+        let drawing = appState?.isDrawingModeActive ?? false
+        let editing = appState?.isTextInputActive ?? false
+        // Default: click-through. Only capture while a caption field needs AppKit focus.
+        let capture = drawing && editing
+        for window in windows {
+            window.ignoresMouseEvents = !capture
         }
     }
 
@@ -184,12 +207,17 @@ final class OverlayController: ObservableObject {
 
 final class OverlayWindow: NSPanel {
     var isDrawingActive = false {
-        didSet { updateAppearance() }
+        didSet {
+            updateAppearance()
+            if !isDrawingActive, !allowsTextEditing, isKeyWindow {
+                resignKey()
+            }
+        }
     }
 
     var allowsTextEditing = false {
         didSet {
-            if !allowsTextEditing, isKeyWindow {
+            if !allowsTextEditing, !isDrawingActive, isKeyWindow {
                 resignKey()
             }
         }
@@ -226,15 +254,24 @@ final class OverlayWindow: NSPanel {
         }
     }
 
-    override var canBecomeKey: Bool { allowsTextEditing }
+    /// Caption editing needs key focus; tool shortcuts use Carbon / global monitors.
+    override var canBecomeKey: Bool { allowsTextEditing || (isDrawingActive && !ignoresMouseEvents) }
     override var canBecomeMain: Bool { false }
 
     override func sendEvent(_ event: NSEvent) {
-        if isDrawingActive, event.type == .leftMouseDown || event.type == .rightMouseDown {
+        if allowsTextEditing || (isDrawingActive && !ignoresMouseEvents),
+           event.type == .leftMouseDown || event.type == .rightMouseDown {
             if !ToolbarFrameTracker.contains(screenPoint: NSEvent.mouseLocation) {
                 orderFrontRegardless()
+                makeKey()
             }
         }
         super.sendEvent(event)
+    }
+
+    func claimKeyFocus() {
+        guard allowsTextEditing || (isDrawingActive && !ignoresMouseEvents) else { return }
+        orderFrontRegardless()
+        makeKey()
     }
 }

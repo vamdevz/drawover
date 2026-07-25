@@ -71,10 +71,10 @@ Grant when prompted:
 
 ### 5. Use
 
-1. Click the **pencil icon** in the menu bar (or press **⌥D**) to start drawing
-2. Use the floating toolbar to pick tools and colors
-3. Click the **green dot** again to stop — annotations clear from the screen
-4. Press **⌥C** to clear all, **⌘⇧S** snapshot (defaults may vary — see Settings → Shortcuts)
+1. Click the **pencil icon** in the menu bar (or press **⌃⇧D**) to start drawing mode
+2. Scroll and click apps as usual — the overlay stays click-through
+3. **Drag** to draw with the selected tool; plain clicks go to the app underneath
+4. Press **⌥C** to clear all, **⌘S** for snapshot (see Settings → Shortcuts)
 
 ## Build from source
 
@@ -127,12 +127,13 @@ drawover/
 
 | Shortcut | Action |
 |----------|--------|
-| `⌥D` | Toggle drawing mode |
+| `⌃⇧D` | Toggle drawing mode |
 | `Esc` | Stop drawing / dismiss caption |
 | `⌥C` | Clear all annotations |
 | `⌘Z` | Undo |
 | `⌘S` | Snapshot to clipboard |
-| `⌥1` – `⌥7` | Select tools |
+| `⌃1` – `⌃7` | Select tools (Pen, Rectangle, Arrow, …) |
+| `⌃` (tap alone) | Cycle Pen → Rectangle → Arrow |
 
 Customize in **Settings → Shortcuts** (menu bar → Settings).
 

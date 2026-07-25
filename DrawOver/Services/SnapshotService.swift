@@ -33,12 +33,27 @@ enum SnapshotService {
         hideChrome: () -> Void,
         restoreChrome: () -> Void
     ) async {
+        requestScreenRecordingIfNeeded()
+
         hideChrome()
-        try? await Task.sleep(nanoseconds: 150_000_000)
+        try? await Task.sleep(nanoseconds: 200_000_000)
 
         let scale = NSScreen.screens.first { $0.displayID == displayID }?.backingScaleFactor ?? 2.0
+        var captured: NSImage?
+        var failureReason: String?
 
-        if let base = await captureDisplay(displayID: displayID),
+        if let image = await captureDisplay(displayID: displayID) {
+            captured = image
+        } else if let fallback = CGDisplayCreateImage(displayID) {
+            captured = NSImage(
+                cgImage: fallback,
+                size: NSSize(width: fallback.width, height: fallback.height)
+            )
+        } else {
+            failureReason = "Snapshot failed — enable Screen Recording for DrawOver in System Settings → Privacy & Security."
+        }
+
+        if let base = captured,
            let composited = compositeAnnotations(
                base: base,
                annotations: annotations,
@@ -46,21 +61,20 @@ enum SnapshotService {
                scale: scale
            ) {
             copyToClipboard(composited)
-            showToast("Snapshot copied to clipboard")
-        } else if let fallback = CGDisplayCreateImage(displayID),
-                  let composited = compositeAnnotations(
-                      base: NSImage(cgImage: fallback, size: NSSize(width: fallback.width, height: fallback.height)),
-                      annotations: annotations,
-                      displayID: displayID,
-                      scale: scale
-                  ) {
-            copyToClipboard(composited)
-            showToast("Snapshot copied to clipboard")
+            showFeedback("Snapshot copied to clipboard")
+        } else if let reason = failureReason {
+            showFeedback(reason, isError: true)
         } else {
-            showToast("Snapshot failed — grant Screen Recording permission")
+            showFeedback("Snapshot failed — could not capture this display.", isError: true)
         }
 
         restoreChrome()
+    }
+
+    private static func requestScreenRecordingIfNeeded() {
+        if !CGPreflightScreenCaptureAccess() {
+            _ = CGRequestScreenCaptureAccess()
+        }
     }
 
     private static func screen(containing point: NSPoint) -> NSScreen? {
@@ -69,7 +83,7 @@ enum SnapshotService {
 
     private static func captureDisplay(displayID: UInt32) async -> NSImage? {
         do {
-            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
             guard let display = content.displays.first(where: { $0.displayID == displayID }) ?? content.displays.first else {
                 return nil
             }
@@ -78,8 +92,11 @@ enum SnapshotService {
             let config = SCStreamConfiguration()
             config.width = display.width
             config.height = display.height
-            config.showsCursor = true
-            config.captureResolution = .best
+            config.showsCursor = false
+            config.capturesAudio = false
+            if #available(macOS 14.0, *) {
+                config.captureResolution = .best
+            }
 
             let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
             return NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
@@ -134,14 +151,72 @@ enum SnapshotService {
     private static func copyToClipboard(_ image: NSImage) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.writeObjects([image])
+        // Prefer TIFF so Preview / Slack / Notes paste reliably.
+        if let tiff = image.tiffRepresentation {
+            pasteboard.setData(tiff, forType: .tiff)
+        } else {
+            pasteboard.writeObjects([image])
+        }
+    }
+
+    private static func showFeedback(_ message: String, isError: Bool = false) {
+        if isError {
+            let alert = NSAlert()
+            alert.messageText = "DrawOver"
+            alert.informativeText = message
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            NSApp.activate(ignoringOtherApps: true)
+            alert.runModal()
+            return
+        }
+
+        showToast(message)
     }
 
     private static func showToast(_ message: String) {
-        let notification = NSUserNotification()
-        notification.title = "DrawOver"
-        notification.informativeText = message
-        notification.soundName = nil
-        NSUserNotificationCenter.default.deliver(notification)
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 280, height: 44),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.level = .floating
+        panel.hasShadow = true
+        panel.ignoresMouseEvents = true
+        panel.isFloatingPanel = true
+        panel.hidesOnDeactivate = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+
+        let container = NSView(frame: panel.contentView?.bounds ?? .zero)
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.82).cgColor
+        container.layer?.cornerRadius = 10
+
+        let label = NSTextField(labelWithString: message)
+        label.font = .systemFont(ofSize: 13, weight: .medium)
+        label.textColor = .white
+        label.alignment = .center
+        label.frame = container.bounds.insetBy(dx: 12, dy: 10)
+        label.autoresizingMask = [.width, .height]
+        container.addSubview(label)
+        panel.contentView = container
+
+        if let screen = NSScreen.main {
+            let frame = screen.visibleFrame
+            let origin = NSPoint(
+                x: frame.midX - panel.frame.width / 2,
+                y: frame.minY + 48
+            )
+            panel.setFrameOrigin(origin)
+        }
+
+        panel.orderFrontRegardless()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            panel.orderOut(nil)
+        }
     }
 }

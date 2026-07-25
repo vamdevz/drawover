@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let appState = AppState()
     private let overlayController = OverlayController()
     private let drawingInputMonitor = DrawingInputMonitor()
+    private let drawingPointerRouter = DrawingPointerRouter()
     private var menuBarController: MenuBarController?
     private var hotkeyManager: HotkeyManager?
 
@@ -25,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         overlayController.configure(appState: appState)
         drawingInputMonitor.configure(appState: appState)
+        drawingPointerRouter.configure(appState: appState, overlayController: overlayController)
         menuBarController = MenuBarController(appState: appState, overlayController: overlayController)
         menuBarController?.setup()
 
@@ -32,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeyManager?.register(appState: appState)
 
         requestAccessibilityIfNeeded()
+        requestScreenRecordingIfNeeded()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -41,6 +44,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func requestAccessibilityIfNeeded() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
+    }
+
+    private func requestScreenRecordingIfNeeded() {
+        if !CGPreflightScreenCaptureAccess() {
+            _ = CGRequestScreenCaptureAccess()
+        }
     }
 }
 
@@ -81,6 +90,9 @@ struct SettingsView: View {
             Section("Drawing") {
                 Toggle("Drawing mode active", isOn: $appState.isDrawingModeActive)
                     .disabled(!appState.isAppEnabled)
+                Text("While drawing is on, drag to annotate. Clicks and scrolls still go to apps underneath.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Picker("Default tool", selection: $appState.selectedTool) {
                     ForEach(DrawingTool.allCases) { tool in
                         Label(tool.label, systemImage: tool.icon).tag(tool)
@@ -108,7 +120,12 @@ struct SettingsView: View {
     private var toolbarTab: some View {
         Form {
             Section("Visibility") {
+                Toggle("Invisible mode", isOn: $appState.isInvisibleMode)
+                Text("Hides the floating toolbar. Use the menu bar and keyboard shortcuts to draw.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Toggle("Show toolbar", isOn: $appState.showToolbar)
+                    .disabled(appState.isInvisibleMode)
             }
 
             Section("Appearance") {
@@ -136,6 +153,9 @@ struct SettingsView: View {
                 Text("Click a shortcut field and press your desired key. Prefer **⌥** or **⌃** modifiers for toggle/clear so typing isn't interrupted. Press **Esc** to cancel recording.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Text("Tip: tap **Control** alone while drawing to cycle Pen → Rectangle → Arrow.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Button("Reset all shortcuts to defaults") {
                     shortcutStore.resetToDefaults()
                 }
@@ -151,7 +171,10 @@ struct SettingsView: View {
             }
 
             Section("Tools") {
-                ForEach([ShortcutAction.toolPen, .toolHighlighter, .toolArrow, .toolRectangle, .toolEllipse, .toolText, .toolEraser]) { action in
+                ForEach([
+                    ShortcutAction.toolPen, .toolRectangle, .toolArrow,
+                    .toolHighlighter, .toolEllipse, .toolText, .toolEraser
+                ]) { action in
                     ShortcutRecorderRow(action: action, store: shortcutStore)
                 }
             }
