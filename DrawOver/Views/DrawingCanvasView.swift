@@ -33,6 +33,8 @@ final class DrawingCanvasView: NSView {
 
     private var shapeDragMode: ShapeDragMode = .box
     private var arrowAnchorRect: CGRect?
+    /// Pen + Option: force a straight line from press to release (auto-snap also handles near-straight freehand).
+    private var penForceStraightLine = false
 
     var hasOpenTextEditors: Bool { textEditors.hasOpenEditors }
 
@@ -206,6 +208,8 @@ final class DrawingCanvasView: NSView {
     ) -> Bool {
         if handlesCaptionInput { return true }
         if modifierFlags.contains(.option), isShapeToolActive { return true }
+        // ⌥-drag with pen draws a straight line — capture immediately so Option isn't lost.
+        if modifierFlags.contains(.option), appState?.selectedTool == .pen { return true }
         // ⌃-drag on rectangle/ellipse draws an arrow — capture immediately so Control isn't lost.
         if modifierFlags.contains(.control), isShapeToolActive { return true }
         if clickCount >= 2 { return true }
@@ -452,6 +456,7 @@ final class DrawingCanvasView: NSView {
         pendingFieldFocus = nil
         shapeDragMode = .box
         arrowAnchorRect = nil
+        penForceStraightLine = false
         needsDisplay = true
     }
 
@@ -517,7 +522,15 @@ final class DrawingCanvasView: NSView {
 
         switch tool {
         case .pen, .highlighter:
-            if currentPoints.count > 1 {
+            if tool == .pen, let preview = penStrokePointsForDisplay(current: current) {
+                AnnotationKind.stroke(
+                    points: preview,
+                    lineWidth: width,
+                    color: color,
+                    opacity: 1,
+                    isHighlighter: false
+                ).draw(in: context)
+            } else if currentPoints.count > 1 {
                 let kind = AnnotationKind.stroke(
                     points: currentPoints,
                     lineWidth: width,
@@ -559,7 +572,13 @@ final class DrawingCanvasView: NSView {
         switch appState?.selectedTool {
         case .eraser:
             eraseNear(point)
+        case .pen:
+            penForceStraightLine = modifierFlags.contains(.option)
+            dragStart = point
+            dragCurrent = point
+            currentPoints = [point]
         default:
+            penForceStraightLine = false
             dragStart = point
             dragCurrent = point
             currentPoints = [point]
@@ -569,7 +588,13 @@ final class DrawingCanvasView: NSView {
     private func performMouseDragged(at point: CGPoint) {
         dragCurrent = point
 
-        if appState?.selectedTool == .pen || appState?.selectedTool == .highlighter {
+        if appState?.selectedTool == .pen {
+            if penForceStraightLine, let start = dragStart {
+                currentPoints = [start, point]
+            } else {
+                currentPoints.append(point)
+            }
+        } else if appState?.selectedTool == .highlighter {
             currentPoints.append(point)
         }
 
@@ -588,9 +613,14 @@ final class DrawingCanvasView: NSView {
 
         switch tool {
         case .pen:
-            if currentPoints.count > 1 {
+            var points = currentPoints
+            if points.last.map({ distance($0, point) > 0.5 }) ?? true {
+                points.append(point)
+            }
+            let finalPoints = resolvedPenStrokePoints(points, forcedStraight: penForceStraightLine)
+            if finalPoints.count >= 2, distance(finalPoints[0], finalPoints[finalPoints.count - 1]) > 4 {
                 appState?.addAnnotation(Annotation(kind: .stroke(
-                    points: currentPoints, lineWidth: width, color: color, opacity: 1, isHighlighter: false
+                    points: finalPoints, lineWidth: width, color: color, opacity: 1, isHighlighter: false
                 )), displayID: displayID)
             }
         case .highlighter:
@@ -636,6 +666,7 @@ final class DrawingCanvasView: NSView {
         currentPoints = []
         shapeDragMode = .box
         arrowAnchorRect = nil
+        penForceStraightLine = false
         needsDisplay = true
 
         // Keep keyboard focus on the canvas so ⌃1–⌃7 work immediately after drawing.
@@ -703,6 +734,49 @@ final class DrawingCanvasView: NSView {
         let t = max(0, min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)))
         let projection = CGPoint(x: a.x + t * dx, y: a.y + t * dy)
         return distance(p, projection)
+    }
+
+    /// Live preview points for the pen — snaps to a line when the gesture looks straight.
+    private func penStrokePointsForDisplay(current: CGPoint) -> [CGPoint]? {
+        var points = currentPoints
+        if points.last.map({ distance($0, current) > 0.5 }) ?? true {
+            points.append(current)
+        }
+        let resolved = resolvedPenStrokePoints(points, forcedStraight: penForceStraightLine)
+        return resolved.count >= 2 ? resolved : nil
+    }
+
+    /// Prefer a 2-point line when Option forced it, or when freehand stayed nearly linear.
+    private func resolvedPenStrokePoints(_ points: [CGPoint], forcedStraight: Bool) -> [CGPoint] {
+        guard let first = points.first, let last = points.last else { return points }
+        if forcedStraight || isNearlyStraightStroke(points) {
+            return [first, last]
+        }
+        return points
+    }
+
+    /// True when the stroke stays close to the chord and doesn't wander much along it.
+    private func isNearlyStraightStroke(_ points: [CGPoint]) -> Bool {
+        guard points.count >= 3, let first = points.first, let last = points.last else {
+            return points.count == 2
+        }
+
+        let chord = distance(first, last)
+        guard chord >= 28 else { return false }
+
+        let maxDeviation = max(6, chord * 0.08)
+        for point in points {
+            if distanceToSegment(point, first, last) > maxDeviation {
+                return false
+            }
+        }
+
+        var pathLength: CGFloat = 0
+        for index in 1..<points.count {
+            pathLength += distance(points[index - 1], points[index])
+        }
+        // Reject back-and-forth scribbles that still hug the chord.
+        return pathLength <= chord * 1.22
     }
 
     private func annotationAt(point: CGPoint) -> Annotation? {

@@ -315,7 +315,10 @@ struct ToolbarView: View {
 
     private func toolHelp(for tool: DrawingTool, isSelected: Bool) -> String {
         let shortcut = shortcutDisplay(for: tool)
-        let base = isSelected ? "\(tool.label) — click again to stop" : tool.label
+        var base = isSelected ? "\(tool.label) — click again to stop" : tool.label
+        if tool == .pen {
+            base += " · near-straight strokes snap · ⌥-drag forces line"
+        }
         return shortcut.isEmpty ? base : "\(base) (\(shortcut))"
     }
 
