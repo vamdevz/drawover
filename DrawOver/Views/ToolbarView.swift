@@ -317,7 +317,7 @@ struct ToolbarView: View {
         let shortcut = shortcutDisplay(for: tool)
         var base = isSelected ? "\(tool.label) — click again to stop" : tool.label
         if tool == .pen {
-            base += " · near-straight strokes snap · ⌥-drag forces line"
+            base += " · snaps lines/shapes · ⌥-drag forces line"
         }
         return shortcut.isEmpty ? base : "\(base) (\(shortcut))"
     }

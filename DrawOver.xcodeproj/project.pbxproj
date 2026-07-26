@@ -24,6 +24,7 @@
 		A10000010000000000000011 /* FocusManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000014 /* FocusManager.swift */; };
 		A10000010000000000000012 /* CanvasTextEditorManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000015 /* CanvasTextEditorManager.swift */; };
 		A10000010000000000000013 /* DrawingPointerRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000016 /* DrawingPointerRouter.swift */; };
+		A10000010000000000000014 /* PenShapeRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000017 /* PenShapeRecognizer.swift */; };
 		A1000001000000000000000B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000B /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -49,6 +50,7 @@
 		A20000010000000000000014 /* FocusManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusManager.swift; sourceTree = "<group>"; };
 		A20000010000000000000015 /* CanvasTextEditorManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasTextEditorManager.swift; sourceTree = "<group>"; };
 		A20000010000000000000016 /* DrawingPointerRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingPointerRouter.swift; sourceTree = "<group>"; };
+		A20000010000000000000017 /* PenShapeRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PenShapeRecognizer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -123,6 +125,7 @@
 				A20000010000000000000011 /* ToolbarFrameTracker.swift */,
 				A20000010000000000000012 /* DrawingInputMonitor.swift */,
 				A20000010000000000000016 /* DrawingPointerRouter.swift */,
+				A20000010000000000000017 /* PenShapeRecognizer.swift */,
 				A20000010000000000000014 /* FocusManager.swift */,
 				A20000010000000000000015 /* CanvasTextEditorManager.swift */,
 			);
@@ -213,6 +216,7 @@
 				A1000001000000000000000E /* ToolbarFrameTracker.swift in Sources */,
 				A1000001000000000000000F /* DrawingInputMonitor.swift in Sources */,
 				A10000010000000000000013 /* DrawingPointerRouter.swift in Sources */,
+				A10000010000000000000014 /* PenShapeRecognizer.swift in Sources */,
 				A10000010000000000000011 /* FocusManager.swift in Sources */,
 				A10000010000000000000012 /* CanvasTextEditorManager.swift in Sources */,
 			);

@@ -522,21 +522,20 @@ final class DrawingCanvasView: NSView {
 
         switch tool {
         case .pen, .highlighter:
-            if tool == .pen, let preview = penStrokePointsForDisplay(current: current) {
-                AnnotationKind.stroke(
-                    points: preview,
-                    lineWidth: width,
-                    color: color,
-                    opacity: 1,
-                    isHighlighter: false
-                ).draw(in: context)
+            if tool == .pen {
+                var points = currentPoints
+                if points.last.map({ distance($0, current) > 0.5 }) ?? true {
+                    points.append(current)
+                }
+                let recognition = PenShapeRecognizer.recognize(points, forcedStraight: penForceStraightLine)
+                recognition.annotationKind(lineWidth: width, color: color).draw(in: context)
             } else if currentPoints.count > 1 {
                 let kind = AnnotationKind.stroke(
                     points: currentPoints,
                     lineWidth: width,
                     color: color,
-                    opacity: tool == .highlighter ? 0.35 : 1,
-                    isHighlighter: tool == .highlighter
+                    opacity: 0.35,
+                    isHighlighter: true
                 )
                 kind.draw(in: context)
             }
@@ -617,11 +616,23 @@ final class DrawingCanvasView: NSView {
             if points.last.map({ distance($0, point) > 0.5 }) ?? true {
                 points.append(point)
             }
-            let finalPoints = resolvedPenStrokePoints(points, forcedStraight: penForceStraightLine)
-            if finalPoints.count >= 2, distance(finalPoints[0], finalPoints[finalPoints.count - 1]) > 4 {
-                appState?.addAnnotation(Annotation(kind: .stroke(
-                    points: finalPoints, lineWidth: width, color: color, opacity: 1, isHighlighter: false
-                )), displayID: displayID)
+            let recognition = PenShapeRecognizer.recognize(points, forcedStraight: penForceStraightLine)
+            let kind = recognition.annotationKind(lineWidth: width, color: color)
+            switch kind {
+            case let .stroke(pts, _, _, _, _):
+                if pts.count >= 2, distance(pts[0], pts[pts.count - 1]) > 4 {
+                    appState?.addAnnotation(Annotation(kind: kind), displayID: displayID)
+                }
+            case let .rectangle(rect, _, _, _), let .ellipse(rect, _, _, _):
+                if rect.width > 4, rect.height > 4 {
+                    appState?.addAnnotation(Annotation(kind: kind), displayID: displayID)
+                }
+            case let .triangle(a, b, c, _, _):
+                if abs((a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) / 2) > 40 {
+                    appState?.addAnnotation(Annotation(kind: kind), displayID: displayID)
+                }
+            default:
+                appState?.addAnnotation(Annotation(kind: kind), displayID: displayID)
             }
         case .highlighter:
             if currentPoints.count > 1 {
@@ -706,6 +717,13 @@ final class DrawingCanvasView: NSView {
             if distanceToSegment(point, from, to) < max(lineWidth, threshold) { return true }
         case let .rectangle(rect, _, _, _), let .ellipse(rect, _, _, _), let .spotlight(rect, _, _):
             if rect.insetBy(dx: -threshold, dy: -threshold).contains(point) { return true }
+        case let .triangle(a, b, c, lineWidth, _):
+            let hit = max(lineWidth, threshold)
+            if distanceToSegment(point, a, b) < hit
+                || distanceToSegment(point, b, c) < hit
+                || distanceToSegment(point, c, a) < hit {
+                return true
+            }
         case let .text(content, origin, fontSize, _):
             if AnnotationKind.textBounds(content: content, origin: origin, fontSize: fontSize).contains(point) { return true }
         case let .measure(from, to, _):
@@ -742,41 +760,14 @@ final class DrawingCanvasView: NSView {
         if points.last.map({ distance($0, current) > 0.5 }) ?? true {
             points.append(current)
         }
-        let resolved = resolvedPenStrokePoints(points, forcedStraight: penForceStraightLine)
-        return resolved.count >= 2 ? resolved : nil
-    }
-
-    /// Prefer a 2-point line when Option forced it, or when freehand stayed nearly linear.
-    private func resolvedPenStrokePoints(_ points: [CGPoint], forcedStraight: Bool) -> [CGPoint] {
-        guard let first = points.first, let last = points.last else { return points }
-        if forcedStraight || isNearlyStraightStroke(points) {
-            return [first, last]
+        switch PenShapeRecognizer.recognize(points, forcedStraight: penForceStraightLine) {
+        case let .line(from, to):
+            return [from, to]
+        case let .freehand(pts):
+            return pts.count >= 2 ? pts : nil
+        default:
+            return points.count >= 2 ? points : nil
         }
-        return points
-    }
-
-    /// True when the stroke stays close to the chord and doesn't wander much along it.
-    private func isNearlyStraightStroke(_ points: [CGPoint]) -> Bool {
-        guard points.count >= 3, let first = points.first, let last = points.last else {
-            return points.count == 2
-        }
-
-        let chord = distance(first, last)
-        guard chord >= 28 else { return false }
-
-        let maxDeviation = max(6, chord * 0.08)
-        for point in points {
-            if distanceToSegment(point, first, last) > maxDeviation {
-                return false
-            }
-        }
-
-        var pathLength: CGFloat = 0
-        for index in 1..<points.count {
-            pathLength += distance(points[index - 1], points[index])
-        }
-        // Reject back-and-forth scribbles that still hug the chord.
-        return pathLength <= chord * 1.22
     }
 
     private func annotationAt(point: CGPoint) -> Annotation? {
@@ -846,6 +837,11 @@ final class DrawingCanvasView: NSView {
     private func boundsForShape(_ annotation: Annotation) -> CGRect? {
         switch annotation.kind {
         case let .rectangle(rect, _, _, _), let .ellipse(rect, _, _, _):
+            return rect
+        case let .triangle(a, b, c, _, _):
+            var rect = CGRect(origin: a, size: .zero)
+            rect = rect.union(CGRect(origin: b, size: .zero))
+            rect = rect.union(CGRect(origin: c, size: .zero))
             return rect
         default:
             return nil

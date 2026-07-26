@@ -6,6 +6,7 @@ enum AnnotationKind: Equatable {
     case arrow(from: CGPoint, to: CGPoint, lineWidth: CGFloat, color: NSColor)
     case rectangle(rect: CGRect, lineWidth: CGFloat, color: NSColor, filled: Bool)
     case ellipse(rect: CGRect, lineWidth: CGFloat, color: NSColor, filled: Bool)
+    case triangle(a: CGPoint, b: CGPoint, c: CGPoint, lineWidth: CGFloat, color: NSColor)
     case text(content: String, origin: CGPoint, fontSize: CGFloat, color: NSColor)
     case spotlight(rect: CGRect, cornerRadius: CGFloat, dimOpacity: CGFloat)
     case measure(from: CGPoint, to: CGPoint, label: String)
@@ -67,6 +68,18 @@ extension AnnotationKind {
             }
             context.strokeEllipse(in: rect)
 
+        case let .triangle(a, b, c, lineWidth, color):
+            context.setStrokeColor(color.cgColor)
+            context.setLineWidth(lineWidth)
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
+            context.beginPath()
+            context.move(to: a)
+            context.addLine(to: b)
+            context.addLine(to: c)
+            context.closePath()
+            context.strokePath()
+
         case let .text(content, origin, fontSize, color):
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: NSFont.systemFont(ofSize: fontSize, weight: .semibold),
@@ -114,6 +127,14 @@ extension AnnotationKind {
                 color: color,
                 filled: filled
             )
+        case let .triangle(a, b, c, lineWidth, color):
+            return .triangle(
+                a: CGPoint(x: a.x + delta.x, y: a.y + delta.y),
+                b: CGPoint(x: b.x + delta.x, y: b.y + delta.y),
+                c: CGPoint(x: c.x + delta.x, y: c.y + delta.y),
+                lineWidth: lineWidth,
+                color: color
+            )
         case let .text(content, origin, fontSize, color):
             return .text(
                 content: content,
@@ -152,6 +173,11 @@ extension AnnotationKind {
             return rect.insetBy(dx: inset, dy: inset)
         case let .rectangle(rect, _, _, _), let .ellipse(rect, _, _, _), let .spotlight(rect, _, _):
             return rect.insetBy(dx: -padding, dy: -padding)
+        case let .triangle(a, b, c, lineWidth, _):
+            var rect = CGRect(origin: a, size: .zero)
+            rect = rect.union(CGRect(origin: b, size: .zero))
+            rect = rect.union(CGRect(origin: c, size: .zero))
+            return rect.insetBy(dx: -max(lineWidth, padding), dy: -max(lineWidth, padding))
         case let .text(content, origin, fontSize, _):
             return Self.textBounds(content: content, origin: origin, fontSize: fontSize, padding: padding)
         case let .measure(from, to, _):
