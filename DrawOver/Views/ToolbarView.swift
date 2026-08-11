@@ -291,7 +291,10 @@ struct ToolbarView: View {
 
     @ViewBuilder
     private var shapeToolSection: some View {
-        if (appState.selectedTool == .rectangle || appState.selectedTool == .ellipse),
+        if (appState.selectedTool == .rectangle
+            || appState.selectedTool == .ellipse
+            || appState.selectedTool == .triangle
+            || appState.selectedTool == .person),
            appState.isDrawingModeActive {
             Button {
                 appState.captionAfterShape.toggle()
@@ -317,7 +320,14 @@ struct ToolbarView: View {
         let shortcut = shortcutDisplay(for: tool)
         var base = isSelected ? "\(tool.label) — click again to stop" : tool.label
         if tool == .pen {
-            base += " · snaps lines/shapes · ⌥-drag forces line"
+            if appState.penAutoSnapShapes {
+                base += " · auto-snap shapes on · ⌥-drag = line"
+            } else {
+                base += " · freeform · ⌥-drag = line"
+            }
+        }
+        if tool == .person {
+            base += " · stick figure for network / traffic diagrams"
         }
         return shortcut.isEmpty ? base : "\(base) (\(shortcut))"
     }
@@ -329,6 +339,8 @@ struct ToolbarView: View {
         case .arrow: .toolArrow
         case .rectangle: .toolRectangle
         case .ellipse: .toolEllipse
+        case .triangle: .toolTriangle
+        case .person: .toolPerson
         case .text: .toolText
         case .eraser: .toolEraser
         }
@@ -372,7 +384,7 @@ struct ToolbarView: View {
 
             HStack(spacing: 10) {
                 Button {
-                    appState.lineWidth = max(1, appState.lineWidth - 2)
+                    appState.lineWidth = max(1, appState.lineWidth - 1)
                 } label: {
                     Image(systemName: "minus.circle.fill")
                         .font(.system(size: 18))
@@ -380,7 +392,7 @@ struct ToolbarView: View {
                 .buttonStyle(.plain)
 
                 Button {
-                    appState.lineWidth = min(40, appState.lineWidth + 2)
+                    appState.lineWidth = min(40, appState.lineWidth + 1)
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 18))

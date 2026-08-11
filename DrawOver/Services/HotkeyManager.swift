@@ -100,8 +100,8 @@ final class HotkeyManager {
         let toolsAllowed = !appState.toolsOnlyWhileDrawing || appState.isDrawingModeActive
         if toolsAllowed {
             actions.append(contentsOf: [
-                .toolPen, .toolRectangle, .toolArrow,
-                .toolHighlighter, .toolEllipse, .toolText, .toolEraser
+                .toolPen, .toolRectangle, .toolArrow, .toolPerson,
+                .toolTriangle, .toolEllipse, .toolText, .toolEraser, .toolHighlighter
             ])
         }
 
@@ -147,7 +147,7 @@ final class HotkeyManager {
             appState.redo()
         case .snapshot:
             NotificationCenter.default.post(name: .takeSnapshot, object: nil)
-        case .toolPen, .toolHighlighter, .toolArrow, .toolRectangle, .toolEllipse, .toolText, .toolEraser:
+        case .toolPen, .toolHighlighter, .toolArrow, .toolRectangle, .toolEllipse, .toolTriangle, .toolPerson, .toolText, .toolEraser:
             if let tool = action.linkedTool {
                 appState.selectToolFromShortcut(tool)
             }

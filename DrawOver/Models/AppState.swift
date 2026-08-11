@@ -12,6 +12,8 @@ final class AppState: ObservableObject {
     @Published var strokeColor: Color = .red
     @Published var lineWidth: CGFloat = 3
     @Published var annotations: [Annotation] = []
+    /// Click a stroke to select; Delete / Forward Delete removes the selection.
+    @Published var selectedAnnotationIDs: Set<UUID> = []
     @Published var toolbarDock: ToolbarDock = .floating
     @Published var showToolbar = true
     /// When true, the floating toolbar is hidden; control DrawOver via menu bar + keyboard shortcuts.
@@ -22,6 +24,10 @@ final class AppState: ObservableObject {
     @Published var clearOnToolSwitch = false
     @Published var toolsOnlyWhileDrawing = true
     @Published var captionAfterShape = false
+    /// When true, freehand pen strokes snap to lines / circles / rectangles / triangles.
+    @Published var penAutoSnapShapes = false
+    /// Control-tap cycles either all toolbar tools or only Pen ↔ Rectangle.
+    @Published var controlTapToolCycle: ControlTapToolCycle = .allTools
     @Published var spotlightDimOpacity: CGFloat = 0.55
 
     /// Last screen the user drew on or moved the toolbar to — used for snapshots.
@@ -64,7 +70,7 @@ final class AppState: ObservableObject {
         setAppEnabled(!isAppEnabled)
     }
 
-    /// First Esc clears the canvas; a second Esc within ~0.45s turns drawing off (green dot).
+    /// Esc undoes once; a second Esc within ~0.45s exits drawing mode (green dot off).
     func handleEscapeKey() {
         guard isAppEnabled, isDrawingModeActive else { return }
 
@@ -72,10 +78,12 @@ final class AppState: ObservableObject {
         if let last = lastEscapeTime, now.timeIntervalSince(last) <= escapeDoubleTapInterval {
             lastEscapeTime = nil
             stopDrawing()
-        } else {
-            lastEscapeTime = now
-            clearDrawingAndStayActive()
+            return
         }
+
+        lastEscapeTime = now
+        NotificationCenter.default.post(name: .cancelCanvasInteraction, object: nil)
+        undo()
     }
 
     /// Clears the canvas but keeps drawing mode active (green dot stays on).
@@ -99,6 +107,7 @@ final class AppState: ObservableObject {
             annotations.removeAll()
         }
         isTextInputActive = false
+        clearSelection()
 
         isDrawingModeActive = false
         lastEscapeTime = nil
@@ -128,6 +137,7 @@ final class AppState: ObservableObject {
             pushUndo()
         }
         annotations.removeAll()
+        clearSelection()
     }
 
     func addAnnotation(_ annotation: Annotation, displayID: UInt32) {
@@ -145,6 +155,25 @@ final class AppState: ObservableObject {
         guard !ids.isEmpty else { return }
         if recordUndo { pushUndo() }
         annotations.removeAll { ids.contains($0.id) }
+        selectedAnnotationIDs.subtract(ids)
+    }
+
+    func selectAnnotations(_ ids: Set<UUID>) {
+        selectedAnnotationIDs = ids
+    }
+
+    func clearSelection() {
+        selectedAnnotationIDs = []
+    }
+
+    /// Removes the current selection (Delete / Forward Delete).
+    @discardableResult
+    func deleteSelectedAnnotations() -> Bool {
+        guard !selectedAnnotationIDs.isEmpty else { return false }
+        let ids = selectedAnnotationIDs
+        removeAnnotations(withIDs: ids)
+        clearSelection()
+        return true
     }
 
     func updateTextAnnotation(id: UUID, origin: CGPoint) {
@@ -166,6 +195,7 @@ final class AppState: ObservableObject {
         trimHistoryStack(&redoStack)
         NotificationCenter.default.post(name: .annotationsCleared, object: nil)
         isTextInputActive = false
+        clearSelection()
         annotations = previous
     }
 
@@ -175,6 +205,7 @@ final class AppState: ObservableObject {
         trimHistoryStack(&undoStack)
         NotificationCenter.default.post(name: .annotationsCleared, object: nil)
         isTextInputActive = false
+        clearSelection()
         annotations = next
     }
 
@@ -197,6 +228,7 @@ final class AppState: ObservableObject {
         if clearOnToolSwitch && isDrawingModeActive && selectedTool != tool {
             annotations.removeAll()
         }
+        clearSelection()
 
         selectedTool = tool
         if tool.supportsLineWidth {
@@ -239,6 +271,7 @@ final class AppState: ObservableObject {
         if clearOnToolSwitch && isDrawingModeActive && selectedTool != tool {
             annotations.removeAll()
         }
+        clearSelection()
 
         selectedTool = tool
         if tool.supportsLineWidth {
@@ -257,15 +290,16 @@ final class AppState: ObservableObject {
         selectTool(tool)
     }
 
-    /// Tap Control alone to cycle Pen → Rectangle → Arrow while drawing.
+    /// Tap Control alone to cycle tools while drawing (see `controlTapToolCycle`).
     func togglePenAndRectangle() {
         guard isAppEnabled, isDrawingModeActive else { return }
-        let cycle: [DrawingTool] = [.pen, .rectangle, .arrow]
+        let cycle = controlTapToolCycle.tools
+        guard !cycle.isEmpty else { return }
         let next: DrawingTool
         if let idx = cycle.firstIndex(of: selectedTool) {
             next = cycle[(idx + 1) % cycle.count]
         } else {
-            next = .pen
+            next = cycle[0]
         }
         selectToolFromShortcut(next)
     }
@@ -319,6 +353,11 @@ final class AppState: ObservableObject {
         }
         toolsOnlyWhileDrawing = defaults.object(forKey: "toolsOnlyWhileDrawing") as? Bool ?? true
         captionAfterShape = defaults.object(forKey: "captionAfterShape") as? Bool ?? false
+        penAutoSnapShapes = defaults.object(forKey: "penAutoSnapShapes") as? Bool ?? false
+        if let raw = defaults.string(forKey: "controlTapToolCycle"),
+           let cycle = ControlTapToolCycle(rawValue: raw) {
+            controlTapToolCycle = cycle
+        }
         if let dock = defaults.string(forKey: "toolbarDock"), let value = ToolbarDock(rawValue: dock) {
             toolbarDock = value
         }
@@ -343,6 +382,8 @@ final class AppState: ObservableObject {
         $clearOnToolSwitch.dropFirst().sink { UserDefaults.standard.set($0, forKey: "clearOnToolSwitch") }.store(in: &cancellables)
         $toolsOnlyWhileDrawing.dropFirst().sink { UserDefaults.standard.set($0, forKey: "toolsOnlyWhileDrawing") }.store(in: &cancellables)
         $captionAfterShape.dropFirst().sink { UserDefaults.standard.set($0, forKey: "captionAfterShape") }.store(in: &cancellables)
+        $penAutoSnapShapes.dropFirst().sink { UserDefaults.standard.set($0, forKey: "penAutoSnapShapes") }.store(in: &cancellables)
+        $controlTapToolCycle.dropFirst().sink { UserDefaults.standard.set($0.rawValue, forKey: "controlTapToolCycle") }.store(in: &cancellables)
         $toolbarDock.dropFirst().sink { UserDefaults.standard.set($0.rawValue, forKey: "toolbarDock") }.store(in: &cancellables)
 
         $isDrawingModeActive.dropFirst().sink { _ in

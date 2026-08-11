@@ -40,6 +40,12 @@ final class OverlayController: ObservableObject {
             }
             .store(in: &cancellables)
 
+        appState.$selectedAnnotationIDs
+            .sink { [weak self] _ in
+                self?.canvasViews.forEach { $0.needsDisplay = true }
+            }
+            .store(in: &cancellables)
+
         NotificationCenter.default.addObserver(
             forName: .annotationsCleared,
             object: nil,
@@ -158,6 +164,22 @@ final class OverlayController: ObservableObject {
         }
         refreshMousePassthrough()
         windows.forEach { $0.orderFrontRegardless() }
+    }
+
+    /// Drop below system region-select UI (layer ~0) and stop competing for the drag.
+    func beginSystemScreenshotYield() {
+        for window in windows {
+            window.level = .normal
+        }
+    }
+
+    func endSystemScreenshotYield() {
+        guard appState?.isAppEnabled == true else { return }
+        for window in windows {
+            window.level = .screenSaver
+            window.orderFrontRegardless()
+        }
+        NotificationCenter.default.post(name: .bringToolbarToFront, object: nil)
     }
 
     func hideOverlaysForSnapshot() {

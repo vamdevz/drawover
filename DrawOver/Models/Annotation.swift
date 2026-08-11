@@ -7,6 +7,8 @@ enum AnnotationKind: Equatable {
     case rectangle(rect: CGRect, lineWidth: CGFloat, color: NSColor, filled: Bool)
     case ellipse(rect: CGRect, lineWidth: CGFloat, color: NSColor, filled: Bool)
     case triangle(a: CGPoint, b: CGPoint, c: CGPoint, lineWidth: CGFloat, color: NSColor)
+    /// Stick-figure person for network / traffic-flow diagrams (head + torso + arms + legs).
+    case person(rect: CGRect, lineWidth: CGFloat, color: NSColor)
     case text(content: String, origin: CGPoint, fontSize: CGFloat, color: NSColor)
     case spotlight(rect: CGRect, cornerRadius: CGFloat, dimOpacity: CGFloat)
     case measure(from: CGPoint, to: CGPoint, label: String)
@@ -80,6 +82,9 @@ extension AnnotationKind {
             context.closePath()
             context.strokePath()
 
+        case let .person(rect, lineWidth, color):
+            drawPerson(context: context, in: rect, lineWidth: lineWidth, color: color)
+
         case let .text(content, origin, fontSize, color):
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: NSFont.systemFont(ofSize: fontSize, weight: .semibold),
@@ -135,6 +140,12 @@ extension AnnotationKind {
                 lineWidth: lineWidth,
                 color: color
             )
+        case let .person(rect, lineWidth, color):
+            return .person(
+                rect: rect.offsetBy(dx: delta.x, dy: delta.y),
+                lineWidth: lineWidth,
+                color: color
+            )
         case let .text(content, origin, fontSize, color):
             return .text(
                 content: content,
@@ -171,7 +182,7 @@ extension AnnotationKind {
             let rect = CGRect(x: min(from.x, to.x), y: min(from.y, to.y), width: abs(to.x - from.x), height: abs(to.y - from.y))
             let inset = -max(lineWidth, padding)
             return rect.insetBy(dx: inset, dy: inset)
-        case let .rectangle(rect, _, _, _), let .ellipse(rect, _, _, _), let .spotlight(rect, _, _):
+        case let .rectangle(rect, _, _, _), let .ellipse(rect, _, _, _), let .person(rect, _, _), let .spotlight(rect, _, _):
             return rect.insetBy(dx: -padding, dy: -padding)
         case let .triangle(a, b, c, lineWidth, _):
             var rect = CGRect(origin: a, size: .zero)
@@ -224,6 +235,55 @@ extension AnnotationKind {
         context.addLine(to: p2)
         context.closePath()
         context.fillPath()
+    }
+
+    /// Stick figure for education / network-flow diagrams (flipped Y: minY = top).
+    private func drawPerson(context: CGContext, in rect: CGRect, lineWidth: CGFloat, color: NSColor) {
+        guard rect.width > 4, rect.height > 4 else { return }
+
+        context.setStrokeColor(color.cgColor)
+        context.setLineWidth(lineWidth)
+        context.setLineCap(.round)
+        context.setLineJoin(.round)
+
+        let midX = rect.midX
+        let headRadius = min(rect.width, rect.height) * 0.14
+        let headCenter = CGPoint(x: midX, y: rect.minY + headRadius + rect.height * 0.02)
+        let headRect = CGRect(
+            x: headCenter.x - headRadius,
+            y: headCenter.y - headRadius,
+            width: headRadius * 2,
+            height: headRadius * 2
+        )
+        context.strokeEllipse(in: headRect)
+
+        let neck = CGPoint(x: midX, y: headCenter.y + headRadius)
+        let hip = CGPoint(x: midX, y: rect.minY + rect.height * 0.58)
+        let shoulder = CGPoint(x: midX, y: neck.y + (hip.y - neck.y) * 0.22)
+
+        // Torso
+        context.beginPath()
+        context.move(to: neck)
+        context.addLine(to: hip)
+        context.strokePath()
+
+        // Arms (slightly down)
+        let armReach = rect.width * 0.42
+        let armDrop = rect.height * 0.12
+        context.beginPath()
+        context.move(to: CGPoint(x: shoulder.x - armReach, y: shoulder.y + armDrop))
+        context.addLine(to: shoulder)
+        context.addLine(to: CGPoint(x: shoulder.x + armReach, y: shoulder.y + armDrop))
+        context.strokePath()
+
+        // Legs
+        let footY = rect.maxY - rect.height * 0.02
+        let stance = rect.width * 0.28
+        context.beginPath()
+        context.move(to: CGPoint(x: midX - stance, y: footY))
+        context.addLine(to: hip)
+        context.addLine(to: CGPoint(x: midX + stance, y: footY))
+        context.strokePath()
     }
 
     private func drawMeasure(context: CGContext, from: CGPoint, to: CGPoint, label: String) {

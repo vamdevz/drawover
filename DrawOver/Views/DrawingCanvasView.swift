@@ -81,21 +81,42 @@ final class DrawingCanvasView: NSView {
             return true
         }
 
+        if isDeleteKeyEvent(event) {
+            // Caption fields own Delete / Backspace while typing.
+            if textEditors.hasOpenEditors,
+               overlayWindow?.firstResponder is NSText
+                || overlayWindow?.firstResponder is NSTextView
+                || overlayWindow?.firstResponder is NSTextField {
+                return false
+            }
+            if appState.deleteSelectedAnnotations() {
+                needsDisplay = true
+                NotificationCenter.default.post(name: .bringToolbarToFront, object: nil)
+                return true
+            }
+            return false
+        }
+
         return handleToolShortcutEvent(event, appState: appState)
+    }
+
+    private func isDeleteKeyEvent(_ event: NSEvent) -> Bool {
+        let code = event.keyCode
+        return code == UInt16(kVK_Delete) || code == UInt16(kVK_ForwardDelete)
     }
 
     private func isToolShortcutEvent(_ event: NSEvent, appState: AppState) -> Bool {
         let toolActions: [ShortcutAction] = [
-            .toolPen, .toolRectangle, .toolArrow,
-            .toolHighlighter, .toolEllipse, .toolText, .toolEraser
+            .toolPen, .toolRectangle, .toolArrow, .toolPerson,
+            .toolTriangle, .toolEllipse, .toolText, .toolEraser, .toolHighlighter
         ]
         return toolActions.contains { matchesShortcut(event, appState.shortcutStore.shortcut(for: $0)) }
     }
 
     private func handleToolShortcutEvent(_ event: NSEvent, appState: AppState) -> Bool {
         let toolActions: [ShortcutAction] = [
-            .toolPen, .toolRectangle, .toolArrow,
-            .toolHighlighter, .toolEllipse, .toolText, .toolEraser
+            .toolPen, .toolRectangle, .toolArrow, .toolPerson,
+            .toolTriangle, .toolEllipse, .toolText, .toolEraser, .toolHighlighter
         ]
         for action in toolActions {
             let shortcut = appState.shortcutStore.shortcut(for: action)
@@ -151,13 +172,13 @@ final class DrawingCanvasView: NSView {
 
     private var isShapeToolActive: Bool {
         guard let tool = appState?.selectedTool else { return false }
-        return tool == .rectangle || tool == .ellipse
+        return tool == .rectangle || tool == .ellipse || tool == .triangle || tool == .person
     }
 
     private var supportsCaptionDrag: Bool {
         guard let tool = appState?.selectedTool else { return false }
         switch tool {
-        case .rectangle, .ellipse, .arrow:
+        case .rectangle, .ellipse, .triangle, .person, .arrow:
             return true
         default:
             return false
@@ -178,8 +199,13 @@ final class DrawingCanvasView: NSView {
         }
     }
 
+    /// Click a stroke to select (any tool except eraser), then Delete to remove.
+    private var supportsObjectSelect: Bool {
+        appState?.selectedTool != .eraser
+    }
+
     private func objectDragCaptures(point: CGPoint) -> Bool {
-        supportsObjectDrag && annotationAt(point: point) != nil
+        (supportsObjectDrag || supportsObjectSelect) && movableAnnotationAt(point: point) != nil
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -214,9 +240,9 @@ final class DrawingCanvasView: NSView {
         if modifierFlags.contains(.control), isShapeToolActive { return true }
         if clickCount >= 2 { return true }
         if supportsCaptionDrag, textAnnotation(at: point, generous: true) != nil { return true }
-        if supportsObjectDrag,
+        if supportsObjectDrag || supportsObjectSelect,
            !modifierFlags.contains(.control),
-           annotationAt(point: point) != nil {
+           movableAnnotationAt(point: point) != nil {
             return true
         }
         return false
@@ -251,16 +277,27 @@ final class DrawingCanvasView: NSView {
 
         if supportsCaptionDrag, let annotation = textAnnotation(at: point, generous: true) {
             beginPendingTextDrag(annotation: annotation, at: point)
+            selectAnnotationGroup(annotation)
             return
         }
 
-        if supportsObjectDrag,
-           !modifierFlags.contains(.control),
-           let annotation = annotationAt(point: point) {
-            beginPendingObjectDrag(annotation: annotation, at: point)
-            return
+        // Move only when grabbing the stroke/border — not the hollow interior —
+        // so you can draw inside or beside existing shapes without nudging them.
+        // A click without drag keeps the selection so Delete can remove the item.
+        if !modifierFlags.contains(.control),
+           let annotation = movableAnnotationAt(point: point) {
+            if supportsObjectDrag {
+                beginPendingObjectDrag(annotation: annotation, at: point)
+                selectAnnotationGroup(annotation)
+                return
+            }
+            if supportsObjectSelect {
+                selectAnnotationGroup(annotation)
+                return
+            }
         }
 
+        appState?.clearSelection()
         performMouseDown(at: point, modifierFlags: modifierFlags)
     }
 
@@ -435,12 +472,33 @@ final class DrawingCanvasView: NSView {
             annotation.kind.draw(in: context)
         }
 
+        drawSelectionHighlights(in: context)
+
         if let start = dragStart, let current = dragCurrent {
             if isShapeToolActive, shapeDragMode == .arrow {
                 drawArrowPreview(from: arrowStart(toward: current), to: current, in: context)
             } else if let tool = appState?.selectedTool {
                 drawPreview(tool: tool, start: start, current: current, in: context)
             }
+        }
+    }
+
+    private func drawSelectionHighlights(in context: CGContext) {
+        guard let selected = appState?.selectedAnnotationIDs, !selected.isEmpty else { return }
+
+        context.saveGState()
+        defer { context.restoreGState() }
+
+        let highlight = NSColor.systemBlue.withAlphaComponent(0.95)
+        context.setStrokeColor(highlight.cgColor)
+        context.setLineWidth(1.5)
+        context.setLineDash(phase: 0, lengths: [4, 3])
+
+        for annotation in screenAnnotations where selected.contains(annotation.id) {
+            guard let bounds = annotation.kind.boundingRect(padding: 6) else { continue }
+            let path = CGPath(roundedRect: bounds, cornerWidth: 3, cornerHeight: 3, transform: nil)
+            context.addPath(path)
+            context.strokePath()
         }
     }
 
@@ -527,7 +585,7 @@ final class DrawingCanvasView: NSView {
                 if points.last.map({ distance($0, current) > 0.5 }) ?? true {
                     points.append(current)
                 }
-                let recognition = PenShapeRecognizer.recognize(points, forcedStraight: penForceStraightLine)
+                let recognition = recognizePenStroke(points)
                 recognition.annotationKind(lineWidth: width, color: color).draw(in: context)
             } else if currentPoints.count > 1 {
                 let kind = AnnotationKind.stroke(
@@ -545,6 +603,11 @@ final class DrawingCanvasView: NSView {
             AnnotationKind.rectangle(rect: rectFrom(start, current), lineWidth: width, color: color, filled: false).draw(in: context)
         case .ellipse:
             AnnotationKind.ellipse(rect: rectFrom(start, current), lineWidth: width, color: color, filled: false).draw(in: context)
+        case .triangle:
+            let points = trianglePoints(from: start, to: current)
+            AnnotationKind.triangle(a: points.0, b: points.1, c: points.2, lineWidth: width, color: color).draw(in: context)
+        case .person:
+            AnnotationKind.person(rect: rectFrom(start, current), lineWidth: width, color: color).draw(in: context)
         default:
             break
         }
@@ -616,7 +679,7 @@ final class DrawingCanvasView: NSView {
             if points.last.map({ distance($0, point) > 0.5 }) ?? true {
                 points.append(point)
             }
-            let recognition = PenShapeRecognizer.recognize(points, forcedStraight: penForceStraightLine)
+            let recognition = recognizePenStroke(points)
             let kind = recognition.annotationKind(lineWidth: width, color: color)
             switch kind {
             case let .stroke(pts, _, _, _, _):
@@ -668,6 +731,39 @@ final class DrawingCanvasView: NSView {
                     appState?.addAnnotation(Annotation(kind: .ellipse(rect: rect, lineWidth: width, color: color, filled: false)), displayID: displayID)
                 }
             }
+        case .triangle:
+            if shapeDragMode == .arrow {
+                let from = arrowStart(toward: point)
+                if distance(from, point) > 4 {
+                    appState?.addAnnotation(Annotation(kind: .arrow(from: from, to: point, lineWidth: width, color: color)), displayID: displayID)
+                }
+            } else {
+                let points = trianglePoints(from: start, to: point)
+                let area = abs((points.0.x * (points.1.y - points.2.y)
+                    + points.1.x * (points.2.y - points.0.y)
+                    + points.2.x * (points.0.y - points.1.y)) / 2)
+                if area > 40 {
+                    appState?.addAnnotation(
+                        Annotation(kind: .triangle(a: points.0, b: points.1, c: points.2, lineWidth: width, color: color)),
+                        displayID: displayID
+                    )
+                }
+            }
+        case .person:
+            if shapeDragMode == .arrow {
+                let from = arrowStart(toward: point)
+                if distance(from, point) > 4 {
+                    appState?.addAnnotation(Annotation(kind: .arrow(from: from, to: point, lineWidth: width, color: color)), displayID: displayID)
+                }
+            } else {
+                let rect = rectFrom(start, point)
+                if rect.width > 8, rect.height > 12 {
+                    appState?.addAnnotation(
+                        Annotation(kind: .person(rect: rect, lineWidth: width, color: color)),
+                        displayID: displayID
+                    )
+                }
+            }
         default:
             break
         }
@@ -715,7 +811,8 @@ final class DrawingCanvasView: NSView {
             }
         case let .arrow(from, to, lineWidth, _):
             if distanceToSegment(point, from, to) < max(lineWidth, threshold) { return true }
-        case let .rectangle(rect, _, _, _), let .ellipse(rect, _, _, _), let .spotlight(rect, _, _):
+        case let .rectangle(rect, _, _, _), let .ellipse(rect, _, _, _), let .person(rect, _, _), let .spotlight(rect, _, _):
+            // Eraser / general hit: whole bounds (including interior).
             if rect.insetBy(dx: -threshold, dy: -threshold).contains(point) { return true }
         case let .triangle(a, b, c, lineWidth, _):
             let hit = max(lineWidth, threshold)
@@ -732,6 +829,97 @@ final class DrawingCanvasView: NSView {
         return false
     }
 
+    /// Hit-test used for moving objects: only the drawn stroke / border, not hollow interiors.
+    private func annotationIntersectsStroke(_ annotation: Annotation, point: CGPoint, threshold: CGFloat) -> Bool {
+        switch annotation.kind {
+        case let .stroke(points, lineWidth, _, _, _):
+            let hit = max(lineWidth, threshold)
+            for i in 0..<(points.count - 1) {
+                if distanceToSegment(point, points[i], points[i + 1]) < hit {
+                    return true
+                }
+            }
+        case let .arrow(from, to, lineWidth, _):
+            if distanceToSegment(point, from, to) < max(lineWidth, threshold) { return true }
+        case let .rectangle(rect, lineWidth, _, _):
+            return isNearRectStroke(point: point, rect: rect, threshold: max(lineWidth, threshold))
+        case let .ellipse(rect, lineWidth, _, _):
+            return isNearEllipseStroke(point: point, rect: rect, threshold: max(lineWidth, threshold))
+        case let .person(rect, lineWidth, _):
+            // Person is stroke art; grab near the figure bounds edge or interior strokes via a tight inset ring.
+            return isNearRectStroke(point: point, rect: rect, threshold: max(lineWidth, threshold))
+                || personStrokeContains(point: point, rect: rect, threshold: max(lineWidth, threshold))
+        case let .triangle(a, b, c, lineWidth, _):
+            let hit = max(lineWidth, threshold)
+            if distanceToSegment(point, a, b) < hit
+                || distanceToSegment(point, b, c) < hit
+                || distanceToSegment(point, c, a) < hit {
+                return true
+            }
+        case let .text(content, origin, fontSize, _):
+            if AnnotationKind.textBounds(content: content, origin: origin, fontSize: fontSize).contains(point) { return true }
+        case let .measure(from, to, _):
+            if distanceToSegment(point, from, to) < threshold { return true }
+        case .spotlight:
+            return false
+        }
+        return false
+    }
+
+    private func isNearRectStroke(point: CGPoint, rect: CGRect, threshold: CGFloat) -> Bool {
+        let corners = [
+            CGPoint(x: rect.minX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.maxY),
+            CGPoint(x: rect.minX, y: rect.maxY)
+        ]
+        for i in 0..<4 {
+            if distanceToSegment(point, corners[i], corners[(i + 1) % 4]) < threshold {
+                return true
+            }
+        }
+        return false
+    }
+
+    private func isNearEllipseStroke(point: CGPoint, rect: CGRect, threshold: CGFloat) -> Bool {
+        guard rect.width > 2, rect.height > 2 else { return false }
+        let rx = rect.width / 2
+        let ry = rect.height / 2
+        let dx = point.x - rect.midX
+        let dy = point.y - rect.midY
+        let scale = max(rx, ry)
+        guard scale > 0 else { return false }
+        let outer = 1 + threshold / scale
+        let inner = max(0.05, 1 - threshold / scale)
+        let nOuter = (dx * dx) / (rx * rx * outer * outer) + (dy * dy) / (ry * ry * outer * outer)
+        let nInner = (dx * dx) / (rx * rx * inner * inner) + (dy * dy) / (ry * ry * inner * inner)
+        return nOuter <= 1 && nInner >= 1
+    }
+
+    /// Approximate grab targets along the stick-figure limbs (not the empty space between them).
+    private func personStrokeContains(point: CGPoint, rect: CGRect, threshold: CGFloat) -> Bool {
+        let midX = rect.midX
+        let headRadius = min(rect.width, rect.height) * 0.14
+        let headCenter = CGPoint(x: midX, y: rect.minY + headRadius + rect.height * 0.02)
+        let neck = CGPoint(x: midX, y: headCenter.y + headRadius)
+        let hip = CGPoint(x: midX, y: rect.minY + rect.height * 0.58)
+        let shoulder = CGPoint(x: midX, y: neck.y + (hip.y - neck.y) * 0.22)
+        let armReach = rect.width * 0.42
+        let armDrop = rect.height * 0.12
+        let footY = rect.maxY - rect.height * 0.02
+        let stance = rect.width * 0.28
+
+        if distance(point, headCenter) <= headRadius + threshold { return true }
+        let segments: [(CGPoint, CGPoint)] = [
+            (neck, hip),
+            (CGPoint(x: shoulder.x - armReach, y: shoulder.y + armDrop), shoulder),
+            (shoulder, CGPoint(x: shoulder.x + armReach, y: shoulder.y + armDrop)),
+            (hip, CGPoint(x: midX - stance, y: footY)),
+            (hip, CGPoint(x: midX + stance, y: footY))
+        ]
+        return segments.contains { distanceToSegment(point, $0.0, $0.1) < threshold }
+    }
+
     private func rectFrom(_ a: CGPoint, _ b: CGPoint) -> CGRect {
         CGRect(
             x: min(a.x, b.x),
@@ -739,6 +927,16 @@ final class DrawingCanvasView: NSView {
             width: abs(b.x - a.x),
             height: abs(b.y - a.y)
         )
+    }
+
+    /// Apex at the top of the drag rect; base along the bottom edge.
+    /// Canvas is flipped (`isFlipped`), so minY is the visual top.
+    private func trianglePoints(from start: CGPoint, to end: CGPoint) -> (CGPoint, CGPoint, CGPoint) {
+        let rect = rectFrom(start, end)
+        let apex = CGPoint(x: rect.midX, y: rect.minY)
+        let left = CGPoint(x: rect.minX, y: rect.maxY)
+        let right = CGPoint(x: rect.maxX, y: rect.maxY)
+        return (apex, left, right)
     }
 
     private func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat {
@@ -754,13 +952,25 @@ final class DrawingCanvasView: NSView {
         return distance(p, projection)
     }
 
+    /// Live preview / commit recognition for the pen.
+    /// Auto-snap is optional (Settings); ⌥-drag always forces a straight line.
+    private func recognizePenStroke(_ points: [CGPoint]) -> PenShapeRecognition {
+        if penForceStraightLine {
+            return PenShapeRecognizer.recognize(points, forcedStraight: true)
+        }
+        guard appState?.penAutoSnapShapes == true else {
+            return .freehand(points)
+        }
+        return PenShapeRecognizer.recognize(points, forcedStraight: false)
+    }
+
     /// Live preview points for the pen — snaps to a line when the gesture looks straight.
     private func penStrokePointsForDisplay(current: CGPoint) -> [CGPoint]? {
         var points = currentPoints
         if points.last.map({ distance($0, current) > 0.5 }) ?? true {
             points.append(current)
         }
-        switch PenShapeRecognizer.recognize(points, forcedStraight: penForceStraightLine) {
+        switch recognizePenStroke(points) {
         case let .line(from, to):
             return [from, to]
         case let .freehand(pts):
@@ -778,12 +988,28 @@ final class DrawingCanvasView: NSView {
         }
     }
 
+    /// Annotations that can be moved by dragging their stroke (not hollow interiors).
+    private func movableAnnotationAt(point: CGPoint) -> Annotation? {
+        guard let state = appState else { return nil }
+        let threshold = max(state.lineWidth + 2, 6)
+        return screenAnnotations.reversed().first { annotation in
+            annotationIntersectsStroke(annotation, point: point, threshold: threshold)
+        }
+    }
+
     private func beginPendingObjectDrag(annotation: Annotation, at point: CGPoint) {
         var ids: Set<UUID> = [annotation.id]
         ids.formUnion(companionTextIDs(for: annotation))
         pendingObjectDragIDs = ids
         pendingObjectDragStart = point
         objectDragLastPoint = point
+    }
+
+    private func selectAnnotationGroup(_ annotation: Annotation) {
+        var ids: Set<UUID> = [annotation.id]
+        ids.formUnion(companionTextIDs(for: annotation))
+        appState?.selectAnnotations(ids)
+        needsDisplay = true
     }
 
     private func companionTextIDs(for annotation: Annotation) -> Set<UUID> {
@@ -836,7 +1062,7 @@ final class DrawingCanvasView: NSView {
 
     private func boundsForShape(_ annotation: Annotation) -> CGRect? {
         switch annotation.kind {
-        case let .rectangle(rect, _, _, _), let .ellipse(rect, _, _, _):
+        case let .rectangle(rect, _, _, _), let .ellipse(rect, _, _, _), let .person(rect, _, _):
             return rect
         case let .triangle(a, b, c, _, _):
             var rect = CGRect(origin: a, size: .zero)
@@ -881,8 +1107,25 @@ final class DrawingCanvasView: NSView {
 
     @discardableResult
     private func deleteAnnotationAtPoint(_ point: CGPoint) -> Bool {
+        if let hit = movableAnnotationAt(point: point) {
+            return removeAnnotationGroup(hit)
+        }
+        if let text = textAnnotation(at: point, generous: true) {
+            return removeAnnotationGroup(text)
+        }
         if deleteShape(at: point) { return true }
         return deleteArrow(at: point)
+    }
+
+    @discardableResult
+    private func removeAnnotationGroup(_ annotation: Annotation) -> Bool {
+        guard let state = appState else { return false }
+        var ids: Set<UUID> = [annotation.id]
+        ids.formUnion(companionTextIDs(for: annotation))
+        state.removeAnnotations(withIDs: ids)
+        needsDisplay = true
+        NotificationCenter.default.post(name: .bringToolbarToFront, object: nil)
+        return true
     }
 
     @discardableResult

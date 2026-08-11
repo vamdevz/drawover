@@ -75,6 +75,15 @@ struct SettingsView: View {
         .padding()
     }
 
+    private var controlTapTip: String {
+        switch appState.controlTapToolCycle {
+        case .allTools:
+            return "Tip: tap **Control** alone while drawing to cycle through all tools."
+        case .penRectangle:
+            return "Tip: tap **Control** alone while drawing to switch Pen ↔ Rectangle."
+        }
+    }
+
     private var generalTab: some View {
         Form {
             Section("App") {
@@ -103,6 +112,18 @@ struct SettingsView: View {
                 Toggle("Clear annotations when switching tools", isOn: $appState.clearOnToolSwitch)
                 Toggle("Auto-caption every new box", isOn: $appState.captionAfterShape)
                 Toggle("Tool hotkeys only while drawing", isOn: $appState.toolsOnlyWhileDrawing)
+                Toggle("Pen auto-snap shapes", isOn: $appState.penAutoSnapShapes)
+                Text("When on, freehand pen strokes snap to lines, circles, rectangles, and triangles. Turn off for pure freeform drawing. ⌥-drag always forces a straight line.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("Control-tap cycles", selection: $appState.controlTapToolCycle) {
+                    ForEach(ControlTapToolCycle.allCases) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+                Text("Tap **Control** alone while drawing to switch tools. Choose all tools, or only Pen ↔ Rectangle.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Text("Rectangle tool: drag = box, ⌃-drag = arrow. Double-click a box or arrow line to caption. ⇧-draw = caption on new box. Tips on the toolbar are reference only.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -153,7 +174,7 @@ struct SettingsView: View {
                 Text("Click a shortcut field and press your desired key. Prefer **⌥** or **⌃** modifiers for toggle/clear so typing isn't interrupted. Press **Esc** to cancel recording.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Tip: tap **Control** alone while drawing to cycle Pen → Rectangle → Arrow.")
+                Text(controlTapTip)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Button("Reset all shortcuts to defaults") {
@@ -172,8 +193,8 @@ struct SettingsView: View {
 
             Section("Tools") {
                 ForEach([
-                    ShortcutAction.toolPen, .toolRectangle, .toolArrow,
-                    .toolHighlighter, .toolEllipse, .toolText, .toolEraser
+                    ShortcutAction.toolPen, .toolRectangle, .toolArrow, .toolPerson,
+                    .toolTriangle, .toolEllipse, .toolText, .toolEraser, .toolHighlighter
                 ]) { action in
                     ShortcutRecorderRow(action: action, store: shortcutStore)
                 }

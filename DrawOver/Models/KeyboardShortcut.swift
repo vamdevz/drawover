@@ -13,6 +13,8 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Codable {
     case toolArrow
     case toolHighlighter
     case toolEllipse
+    case toolTriangle
+    case toolPerson
     case toolText
     case toolEraser
 
@@ -25,12 +27,14 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Codable {
         case .undo: return "Undo"
         case .redo: return "Redo"
         case .snapshot: return "Snapshot"
-        case .stopDrawing: return "Clear (Esc) / exit (Esc×2)"
+        case .stopDrawing: return "Undo (Esc) / exit (Esc×2)"
         case .toolPen: return "Pen"
         case .toolRectangle: return "Rectangle"
         case .toolArrow: return "Arrow"
-        case .toolHighlighter: return "Highlighter"
-        case .toolEllipse: return "Ellipse"
+        case .toolHighlighter: return "Marker"
+        case .toolEllipse: return "Circle"
+        case .toolTriangle: return "Triangle"
+        case .toolPerson: return "Person"
         case .toolText: return "Text"
         case .toolEraser: return "Eraser"
         }
@@ -51,6 +55,8 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Codable {
         case .toolEllipse: return 10
         case .toolText: return 11
         case .toolEraser: return 12
+        case .toolTriangle: return 13
+        case .toolPerson: return 15
         }
     }
 
@@ -61,6 +67,8 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Codable {
         case .toolArrow: return .arrow
         case .toolRectangle: return .rectangle
         case .toolEllipse: return .ellipse
+        case .toolTriangle: return .triangle
+        case .toolPerson: return .person
         case .toolText: return .text
         case .toolEraser: return .eraser
         default: return nil
@@ -172,10 +180,12 @@ final class ShortcutStore: ObservableObject {
             .toolPen: KeyboardShortcut(action: .toolPen, keyCode: UInt32(kVK_ANSI_1), carbonModifiers: UInt32(controlKey)),
             .toolRectangle: KeyboardShortcut(action: .toolRectangle, keyCode: UInt32(kVK_ANSI_2), carbonModifiers: UInt32(controlKey)),
             .toolArrow: KeyboardShortcut(action: .toolArrow, keyCode: UInt32(kVK_ANSI_3), carbonModifiers: UInt32(controlKey)),
-            .toolHighlighter: KeyboardShortcut(action: .toolHighlighter, keyCode: UInt32(kVK_ANSI_4), carbonModifiers: UInt32(controlKey)),
-            .toolEllipse: KeyboardShortcut(action: .toolEllipse, keyCode: UInt32(kVK_ANSI_5), carbonModifiers: UInt32(controlKey)),
-            .toolText: KeyboardShortcut(action: .toolText, keyCode: UInt32(kVK_ANSI_6), carbonModifiers: UInt32(controlKey)),
-            .toolEraser: KeyboardShortcut(action: .toolEraser, keyCode: UInt32(kVK_ANSI_7), carbonModifiers: UInt32(controlKey)),
+            .toolPerson: KeyboardShortcut(action: .toolPerson, keyCode: UInt32(kVK_ANSI_4), carbonModifiers: UInt32(controlKey)),
+            .toolTriangle: KeyboardShortcut(action: .toolTriangle, keyCode: UInt32(kVK_ANSI_5), carbonModifiers: UInt32(controlKey)),
+            .toolEllipse: KeyboardShortcut(action: .toolEllipse, keyCode: UInt32(kVK_ANSI_6), carbonModifiers: UInt32(controlKey)),
+            .toolText: KeyboardShortcut(action: .toolText, keyCode: UInt32(kVK_ANSI_7), carbonModifiers: UInt32(controlKey)),
+            .toolEraser: KeyboardShortcut(action: .toolEraser, keyCode: UInt32(kVK_ANSI_8), carbonModifiers: UInt32(controlKey)),
+            .toolHighlighter: KeyboardShortcut(action: .toolHighlighter, keyCode: UInt32(kVK_ANSI_9), carbonModifiers: UInt32(controlKey)),
         ]
     }
 
@@ -226,6 +236,10 @@ final class ShortcutStore: ObservableObject {
         migrateRectangleToSecondToolSlot()
         migrateArrowToThirdToolSlot()
         migrateRegionCaptureRemoved()
+        migrateTriangleToolSlot()
+        migratePersonAndShapeOrder()
+        migrateMarkerToBottom()
+        migrateArrowPersonThirdFourth()
     }
 
     /// Upgrade the previous Option+D toggle default to Control+Shift+D.
@@ -253,7 +267,7 @@ final class ShortcutStore: ObservableObject {
 
         let toolActions: [ShortcutAction] = [
             .toolPen, .toolHighlighter, .toolArrow, .toolRectangle,
-            .toolEllipse, .toolText, .toolEraser
+            .toolEllipse, .toolTriangle, .toolPerson, .toolText, .toolEraser
         ]
         var changed = false
         for action in toolActions {
@@ -352,11 +366,122 @@ final class ShortcutStore: ObservableObject {
         NotificationCenter.default.post(name: .shortcutsDidChange, object: nil)
     }
 
+    /// Insert triangle at ⌃6; text/eraser shift to ⌃7/⌃8.
+    private func migrateTriangleToolSlot() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "DrawOver.migratedTriangleTool") else { return }
+        defaults.set(true, forKey: "DrawOver.migratedTriangleTool")
+
+        let remaps: [(ShortcutAction, UInt32)] = [
+            (.toolPen, UInt32(kVK_ANSI_1)),
+            (.toolRectangle, UInt32(kVK_ANSI_2)),
+            (.toolArrow, UInt32(kVK_ANSI_3)),
+            (.toolHighlighter, UInt32(kVK_ANSI_4)),
+            (.toolEllipse, UInt32(kVK_ANSI_5)),
+            (.toolTriangle, UInt32(kVK_ANSI_6)),
+            (.toolText, UInt32(kVK_ANSI_7)),
+            (.toolEraser, UInt32(kVK_ANSI_8)),
+        ]
+        for (action, keyCode) in remaps {
+            shortcuts[action] = KeyboardShortcut(
+                action: action,
+                keyCode: keyCode,
+                carbonModifiers: UInt32(controlKey)
+            )
+        }
+        save()
+        NotificationCenter.default.post(name: .shortcutsDidChange, object: nil)
+    }
+
+    /// Arrow → ⌃3, Person → ⌃4; remaining tools shift after.
+    private func migrateArrowPersonThirdFourth() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "DrawOver.migratedArrowPersonThirdFourth") else { return }
+        defaults.set(true, forKey: "DrawOver.migratedArrowPersonThirdFourth")
+
+        let remaps: [(ShortcutAction, UInt32)] = [
+            (.toolPen, UInt32(kVK_ANSI_1)),
+            (.toolRectangle, UInt32(kVK_ANSI_2)),
+            (.toolArrow, UInt32(kVK_ANSI_3)),
+            (.toolPerson, UInt32(kVK_ANSI_4)),
+            (.toolTriangle, UInt32(kVK_ANSI_5)),
+            (.toolEllipse, UInt32(kVK_ANSI_6)),
+            (.toolText, UInt32(kVK_ANSI_7)),
+            (.toolEraser, UInt32(kVK_ANSI_8)),
+            (.toolHighlighter, UInt32(kVK_ANSI_9)),
+        ]
+        for (action, keyCode) in remaps {
+            shortcuts[action] = KeyboardShortcut(
+                action: action,
+                keyCode: keyCode,
+                carbonModifiers: UInt32(controlKey)
+            )
+        }
+        save()
+        NotificationCenter.default.post(name: .shortcutsDidChange, object: nil)
+    }
+
+    /// Marker/highlighter moves to the bottom of the toolbar (⌃9).
+    private func migrateMarkerToBottom() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "DrawOver.migratedMarkerToBottom") else { return }
+        defaults.set(true, forKey: "DrawOver.migratedMarkerToBottom")
+
+        let remaps: [(ShortcutAction, UInt32)] = [
+            (.toolPen, UInt32(kVK_ANSI_1)),
+            (.toolRectangle, UInt32(kVK_ANSI_2)),
+            (.toolTriangle, UInt32(kVK_ANSI_3)),
+            (.toolEllipse, UInt32(kVK_ANSI_4)),
+            (.toolArrow, UInt32(kVK_ANSI_5)),
+            (.toolPerson, UInt32(kVK_ANSI_6)),
+            (.toolText, UInt32(kVK_ANSI_7)),
+            (.toolEraser, UInt32(kVK_ANSI_8)),
+            (.toolHighlighter, UInt32(kVK_ANSI_9)),
+        ]
+        for (action, keyCode) in remaps {
+            shortcuts[action] = KeyboardShortcut(
+                action: action,
+                keyCode: keyCode,
+                carbonModifiers: UInt32(controlKey)
+            )
+        }
+        save()
+        NotificationCenter.default.post(name: .shortcutsDidChange, object: nil)
+    }
+
+    /// Triangle→⌃3, circle→⌃4; person at ⌃7; text/eraser ⌃8/⌃9.
+    private func migratePersonAndShapeOrder() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "DrawOver.migratedPersonAndShapeOrder") else { return }
+        defaults.set(true, forKey: "DrawOver.migratedPersonAndShapeOrder")
+
+        let remaps: [(ShortcutAction, UInt32)] = [
+            (.toolPen, UInt32(kVK_ANSI_1)),
+            (.toolRectangle, UInt32(kVK_ANSI_2)),
+            (.toolTriangle, UInt32(kVK_ANSI_3)),
+            (.toolEllipse, UInt32(kVK_ANSI_4)),
+            (.toolArrow, UInt32(kVK_ANSI_5)),
+            (.toolHighlighter, UInt32(kVK_ANSI_6)),
+            (.toolPerson, UInt32(kVK_ANSI_7)),
+            (.toolText, UInt32(kVK_ANSI_8)),
+            (.toolEraser, UInt32(kVK_ANSI_9)),
+        ]
+        for (action, keyCode) in remaps {
+            shortcuts[action] = KeyboardShortcut(
+                action: action,
+                keyCode: keyCode,
+                carbonModifiers: UInt32(controlKey)
+            )
+        }
+        save()
+        NotificationCenter.default.post(name: .shortcutsDidChange, object: nil)
+    }
+
     /// Upgrade old plain 1–7 shortcuts that hijacked the number row in every app.
     private func migrateBareNumberToolShortcuts() {
         let toolActions: [ShortcutAction] = [
             .toolPen, .toolHighlighter, .toolArrow, .toolRectangle,
-            .toolEllipse, .toolText, .toolEraser
+            .toolEllipse, .toolTriangle, .toolPerson, .toolText, .toolEraser
         ]
         var changed = false
         for action in toolActions {

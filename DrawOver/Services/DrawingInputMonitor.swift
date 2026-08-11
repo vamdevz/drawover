@@ -2,7 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 import Combine
 
-/// Esc clear, tool switching, and Control-only pen ↔ rectangle toggle while drawing.
+/// Esc undo, tool switching, and Control-tap to cycle all tools while drawing.
 @MainActor
 final class DrawingInputMonitor {
     private weak var appState: AppState?
@@ -183,7 +183,17 @@ final class DrawingInputMonitor {
             return true
         }
 
+        if isDeleteKey(event) {
+            guard appState.isDrawingModeActive, !appState.isTextInputActive else { return false }
+            return appState.deleteSelectedAnnotations()
+        }
+
         return handleToolShortcut(event, appState: appState)
+    }
+
+    private func isDeleteKey(_ event: NSEvent) -> Bool {
+        let code = event.keyCode
+        return code == UInt16(kVK_Delete) || code == UInt16(kVK_ForwardDelete)
     }
 
     private func handleToolShortcut(_ event: NSEvent, appState: AppState) -> Bool {
@@ -192,8 +202,8 @@ final class DrawingInputMonitor {
         }
 
         let toolActions: [ShortcutAction] = [
-            .toolPen, .toolRectangle, .toolArrow,
-            .toolHighlighter, .toolEllipse, .toolText, .toolEraser
+            .toolPen, .toolRectangle, .toolArrow, .toolPerson,
+            .toolTriangle, .toolEllipse, .toolText, .toolEraser, .toolHighlighter
         ]
 
         for action in toolActions {
